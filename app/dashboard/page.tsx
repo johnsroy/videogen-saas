@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { SubscriptionActions } from '@/components/dashboard/subscription-actions'
 import { VideoGenerationCard } from '@/components/dashboard/video-generation-card'
 import { VideoGallery } from '@/components/dashboard/video-gallery'
+import { listAvatars, listVoices } from '@/lib/heygen'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 export default async function DashboardPage() {
@@ -42,13 +43,17 @@ export default async function DashboardPage() {
     .neq('status', 'failed')
     .gte('created_at', firstDayOfMonth)
 
-  // Fetch recent videos
-  const { data: recentVideos } = await supabase
+  // Prefetch avatars and voices server-side (parallel with video queries)
+  const [avatarsResult, voicesResult, { data: recentVideos }] = await Promise.all([
+    listAvatars().catch(() => []),
+    listVoices().catch(() => []),
+    supabase
     .from('videos')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(20),
+  ])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -117,6 +122,8 @@ export default async function DashboardPage() {
             plan={plan}
             isProPlan={isProPlan}
             videosThisMonth={videosThisMonth ?? 0}
+            initialAvatars={avatarsResult}
+            initialVoices={voicesResult}
           />
         </div>
       </div>

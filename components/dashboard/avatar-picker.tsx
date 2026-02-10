@@ -1,54 +1,23 @@
 'use client'
 
-import { useState, useEffect, memo } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
+import { memo } from 'react'
 import { cn } from '@/lib/utils'
 import type { HeyGenAvatar } from '@/lib/heygen-types'
 
 interface AvatarPickerProps {
   selected: string | null
   onSelect: (avatarId: string) => void
+  initialAvatars: HeyGenAvatar[]
 }
 
-export const AvatarPicker = memo(function AvatarPicker({ selected, onSelect }: AvatarPickerProps) {
-  const [avatars, setAvatars] = useState<HeyGenAvatar[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export const AvatarPicker = memo(function AvatarPicker({ selected, onSelect, initialAvatars }: AvatarPickerProps) {
+  const avatars = initialAvatars
 
-  useEffect(() => {
-    async function fetchAvatars() {
-      try {
-        const res = await fetch('/api/heygen/avatars')
-        if (!res.ok) throw new Error('Failed to fetch avatars')
-        const data = await res.json()
-        setAvatars(data.avatars || [])
-      } catch {
-        setError('Failed to load avatars')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchAvatars()
-  }, [])
-
-  if (loading) {
+  if (avatars.length === 0) {
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium">Select Avatar</p>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-square rounded-lg" />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Select Avatar</p>
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-sm text-destructive">Failed to load avatars</p>
       </div>
     )
   }
