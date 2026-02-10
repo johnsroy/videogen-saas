@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { CreditCard, Video, Sparkles, Clock } from 'lucide-react'
+import { CreditCard } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { SubscriptionActions } from '@/components/dashboard/subscription-actions'
+import { VideoGenerationCard } from '@/components/dashboard/video-generation-card'
+import { VideoGallery } from '@/components/dashboard/video-gallery'
+import type { VideoRecord } from '@/lib/heygen-types'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -31,6 +33,23 @@ export default async function DashboardPage() {
       })
     : null
 
+  // Count videos this month
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  const { count: videosThisMonth } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .neq('status', 'failed')
+    .gte('created_at', firstDayOfMonth)
+
+  // Fetch recent videos
+  const { data: recentVideos } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
@@ -40,7 +59,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Subscription Card */}
         <Card>
           <CardHeader>
@@ -76,12 +95,12 @@ export default async function DashboardPage() {
                   <span className="font-medium">{periodEnd}</span>
                 </div>
               )}
-              {!isProPlan && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Videos this month</span>
-                  <span className="font-medium">0 / 5</span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Videos this month</span>
+                <span className="font-medium">
+                  {isProPlan ? 'Unlimited' : `${videosThisMonth ?? 0} / 5`}
+                </span>
+              </div>
               {subscription?.cancel_at_period_end && (
                 <div className="rounded-md bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
                   Your plan will be canceled on {periodEnd}
@@ -92,43 +111,19 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* AI Video Generation Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Video className="h-5 w-5" />
-              AI Video Generation
-            </CardTitle>
-            <CardDescription>Create videos with AI</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed">
-              <div className="text-center">
-                <Sparkles className="mx-auto h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-sm text-muted-foreground">Coming soon</p>
-              </div>
-            </div>
-            <Button disabled className="w-full" variant="outline">
-              Generate Video
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Video Generation Card */}
+        <div className="lg:col-span-2">
+          <VideoGenerationCard
+            plan={plan}
+            isProPlan={isProPlan}
+            videosThisMonth={videosThisMonth ?? 0}
+          />
+        </div>
+      </div>
 
-        {/* Recent Activity Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent Activity
-            </CardTitle>
-            <CardDescription>Your latest actions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-32 items-center justify-center">
-              <p className="text-sm text-muted-foreground">No activity yet</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Video Gallery */}
+      <div className="mt-8">
+        <VideoGallery initialVideos={(recentVideos ?? []) as VideoRecord[]} />
       </div>
     </div>
   )
