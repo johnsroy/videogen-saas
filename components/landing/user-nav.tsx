@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { User } from 'lucide-react'
+import { User, Menu } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,14 +19,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { Menu } from 'lucide-react'
 
 const navLinks = [
   { href: '/#features', label: 'Features' },
   { href: '/#pricing', label: 'Pricing' },
 ]
 
-export function UserNav({ user }: { user: SupabaseUser | null }) {
+interface UserNavProps {
+  user: SupabaseUser | null
+  plan?: string | null
+}
+
+export function UserNav({ user, plan }: UserNavProps) {
   return (
     <div className="flex items-center gap-2">
       {/* Mobile nav */}
@@ -52,12 +56,20 @@ export function UserNav({ user }: { user: SupabaseUser | null }) {
               </Link>
             ))}
             {user ? (
-              <Link
-                href="/logout"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground"
-              >
-                Log out
-              </Link>
+              <>
+                <Link
+                  href="/dashboard"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/logout"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Log out
+                </Link>
+              </>
             ) : (
               <Link href="/login">
                 <Button className="w-full">Log in</Button>
@@ -87,8 +99,14 @@ export function UserNav({ user }: { user: SupabaseUser | null }) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <p className="text-sm font-medium">{user.email}</p>
+                {plan === 'pro' && (
+                  <p className="text-xs text-primary">Pro Plan</p>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard">Dashboard</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/logout">Log out</Link>
               </DropdownMenuItem>
