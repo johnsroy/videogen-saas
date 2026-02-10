@@ -1,8 +1,13 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Video, Sparkles, Wand2 } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
 
-export function Hero() {
+interface HeroProps {
+  user: User | null
+}
+
+export function Hero({ user }: HeroProps) {
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-32">
       <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
@@ -17,7 +22,7 @@ export function Hero() {
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <Link href="/signup">Get Started</Link>
+              <Link href={user ? '/dashboard' : '/signup'}>Get Started</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="#features">Learn More</Link>

@@ -14,7 +14,7 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <Hero />
+        <Hero user={user} />
         <Features />
         <DemoShowcase />
         <Pricing user={user} />
