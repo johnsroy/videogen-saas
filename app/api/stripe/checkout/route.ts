@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
-import { stripe } from '@/lib/stripe'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getStripe } from '@/lib/stripe'
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       : process.env.STRIPE_PRO_MONTHLY_PRICE_ID!
 
     // Check for existing Stripe customer
-    const { data: subscription } = await supabaseAdmin
+    const { data: subscription } = await getSupabaseAdmin()
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
@@ -33,13 +33,13 @@ export async function POST(request: Request) {
 
     // Create Stripe customer if none exists
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: user.email,
         metadata: { supabase_user_id: user.id },
       })
       stripeCustomerId = customer.id
 
-      await supabaseAdmin.from('subscriptions').upsert({
+      await getSupabaseAdmin().from('subscriptions').upsert({
         user_id: user.id,
         stripe_customer_id: stripeCustomerId,
         plan: 'free',
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     const origin = request.headers.get('origin') || 'http://localhost:3000'
 
-    const checkoutSession = await stripe.checkout.sessions.create({
+    const checkoutSession = await getStripe().checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],

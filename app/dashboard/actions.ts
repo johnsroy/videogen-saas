@@ -3,8 +3,8 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
-import { stripe } from '@/lib/stripe'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getStripe } from '@/lib/stripe'
 
 export async function createCheckoutSession() {
   const supabase = await createClient()
@@ -18,7 +18,7 @@ export async function createCheckoutSession() {
   const origin = headersList.get('origin') || 'http://localhost:3000'
 
   // Check for existing Stripe customer
-  const { data: subscription } = await supabaseAdmin
+  const { data: subscription } = await getSupabaseAdmin()
     .from('subscriptions')
     .select('stripe_customer_id')
     .eq('user_id', user.id)
@@ -27,13 +27,13 @@ export async function createCheckoutSession() {
   let customerId = subscription?.stripe_customer_id
 
   if (!customerId) {
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       email: user.email,
       metadata: { supabase_user_id: user.id },
     })
     customerId = customer.id
 
-    await supabaseAdmin.from('subscriptions').upsert({
+    await getSupabaseAdmin().from('subscriptions').upsert({
       user_id: user.id,
       stripe_customer_id: customerId,
       plan: 'free',
@@ -41,7 +41,7 @@ export async function createCheckoutSession() {
     }, { onConflict: 'user_id' })
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!, quantity: 1 }],
@@ -67,7 +67,7 @@ export async function createPortalSession() {
   const headersList = await headers()
   const origin = headersList.get('origin') || 'http://localhost:3000'
 
-  const { data: subscription } = await supabaseAdmin
+  const { data: subscription } = await getSupabaseAdmin()
     .from('subscriptions')
     .select('stripe_customer_id')
     .eq('user_id', user.id)
@@ -77,7 +77,7 @@ export async function createPortalSession() {
     redirect('/dashboard')
   }
 
-  const session = await stripe.billingPortal.sessions.create({
+  const session = await getStripe().billingPortal.sessions.create({
     customer: subscription.stripe_customer_id,
     return_url: `${origin}/dashboard`,
   })

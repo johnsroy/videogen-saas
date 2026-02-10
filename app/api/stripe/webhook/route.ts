@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getStripe } from '@/lib/stripe'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import Stripe from 'stripe'
 
 export async function POST(request: Request) {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         if (session.mode === 'subscription' && session.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(
+          const subscription = await getStripe().subscriptions.retrieve(
             session.subscription as string
           )
           await upsertSubscription(subscription)
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         const subscription = event.data.object as Stripe.Subscription
         const userId = subscription.metadata.supabase_user_id
         if (userId) {
-          await supabaseAdmin
+          await getSupabaseAdmin()
             .from('subscriptions')
             .update({
               plan: 'free',
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
           const subId = typeof subDetails.subscription === 'string'
             ? subDetails.subscription
             : subDetails.subscription.id
-          await supabaseAdmin
+          await getSupabaseAdmin()
             .from('subscriptions')
             .update({ status: 'past_due', updated_at: new Date().toISOString() })
             .eq('stripe_subscription_id', subId)
@@ -100,7 +100,7 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
     ? new Date(item.current_period_end * 1000).toISOString()
     : null
 
-  await supabaseAdmin.from('subscriptions').upsert(
+  await getSupabaseAdmin().from('subscriptions').upsert(
     {
       user_id: userId,
       stripe_customer_id: subscription.customer as string,
