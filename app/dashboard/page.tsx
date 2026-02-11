@@ -43,6 +43,13 @@ export default async function DashboardPage() {
     .neq('status', 'failed')
     .gte('created_at', firstDayOfMonth)
 
+  // Count AI usage this month
+  const { count: aiUsageThisMonth } = await supabase
+    .from('script_enhancements')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', firstDayOfMonth)
+
   // Prefetch avatars and voices server-side (parallel with video queries)
   const [avatarsResult, voicesResult, { data: recentVideos }] = await Promise.all([
     listAvatars().catch(() => []),
@@ -124,6 +131,7 @@ export default async function DashboardPage() {
             videosThisMonth={videosThisMonth ?? 0}
             initialAvatars={avatarsResult}
             initialVoices={voicesResult}
+            aiUsageThisMonth={aiUsageThisMonth ?? 0}
           />
         </div>
       </div>

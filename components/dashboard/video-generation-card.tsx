@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -16,8 +16,9 @@ import {
 } from '@/components/ui/select'
 import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
+import { ScriptAiTools } from './script-ai-tools'
 import { Video, Wand2, Loader2 } from 'lucide-react'
-import type { HeyGenAvatar, HeyGenVoice } from '@/lib/heygen-types'
+import type { HeyGenAvatar, HeyGenVoice, VideoRecord } from '@/lib/heygen-types'
 
 interface VideoGenerationCardProps {
   plan: string
@@ -25,9 +26,10 @@ interface VideoGenerationCardProps {
   videosThisMonth: number
   initialAvatars: HeyGenAvatar[]
   initialVoices: HeyGenVoice[]
+  aiUsageThisMonth: number
 }
 
-export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialAvatars, initialVoices }: VideoGenerationCardProps) {
+export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialAvatars, initialVoices, aiUsageThisMonth }: VideoGenerationCardProps) {
   const [mode, setMode] = useState<'avatar' | 'prompt'>('avatar')
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
@@ -37,6 +39,28 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialA
   const [dimension, setDimension] = useState('1280x720')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Listen for remix events from the video player dialog
+  useEffect(() => {
+    function handleRemix(e: Event) {
+      const video = (e as CustomEvent<VideoRecord>).detail
+      setTitle(video.title + ' (Remix)')
+      if (video.script) {
+        setMode('avatar')
+        setScript(video.script)
+      } else if (video.prompt) {
+        setMode('prompt')
+        setPrompt(video.prompt)
+      }
+      if (video.avatar_id) setSelectedAvatar(video.avatar_id)
+      if (video.voice_id) setSelectedVoice(video.voice_id)
+      if (video.dimension) setDimension(video.dimension)
+      // Scroll to the generation card
+      document.getElementById('video-generation-card')?.scrollIntoView({ behavior: 'smooth' })
+    }
+    window.addEventListener('video-remix', handleRemix)
+    return () => window.removeEventListener('video-remix', handleRemix)
+  }, [])
 
   const limitReached = !isProPlan && videosThisMonth >= 5
 
@@ -80,7 +104,7 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialA
   }
 
   return (
-    <Card>
+    <Card id="video-generation-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Video className="h-5 w-5" />
@@ -132,6 +156,12 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialA
                 rows={5}
                 placeholder="Type what the avatar should say..."
               />
+              <ScriptAiTools
+                currentScript={script}
+                onScriptChange={setScript}
+                isProPlan={isProPlan}
+                aiUsageThisMonth={aiUsageThisMonth}
+              />
             </div>
 
             <div className="space-y-2">
@@ -172,6 +202,12 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialA
                 maxLength={5000}
                 rows={5}
                 placeholder="A friendly presenter explaining the benefits of our product in a professional studio setting..."
+              />
+              <ScriptAiTools
+                currentScript={prompt}
+                onScriptChange={setPrompt}
+                isProPlan={isProPlan}
+                aiUsageThisMonth={aiUsageThisMonth}
               />
             </div>
 
