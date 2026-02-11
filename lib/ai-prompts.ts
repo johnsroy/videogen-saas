@@ -82,6 +82,63 @@ export function buildTemplatePrompt(params: {
   return prompt
 }
 
+// --- Multi-language / Translation prompts ---
+
+export const SCRIPT_TRANSLATOR_SYSTEM = `You are a professional translator specializing in video scripts. Translate scripts naturally — not word-for-word. The translated script must sound natural when read aloud by a native speaker.
+
+Rules:
+- Translate the FULL script maintaining the same tone, pacing, and speaking style
+- Adapt idioms and expressions to feel natural in the target language
+- Keep the same structure and paragraph breaks
+- Do not add any notes, explanations, or formatting — output ONLY the translated script text
+- If the script contains brand names or proper nouns, keep them unchanged`
+
+export function buildTranslatePrompt(params: {
+  script: string
+  sourceLanguage: string
+  targetLanguage: string
+}): string {
+  return `Translate the following video script from ${params.sourceLanguage} to ${params.targetLanguage}.\n\nScript:\n${params.script}`
+}
+
+export const CAPTION_TRANSLATOR_SYSTEM = `You are a professional subtitle translator. Translate WebVTT caption text while preserving the exact WebVTT format and timestamps.
+
+Rules:
+- Keep ALL timestamps exactly as they are (e.g., 00:00:01.000 --> 00:00:04.500)
+- Keep the "WEBVTT" header line
+- Translate ONLY the caption text lines between timestamps
+- Maintain natural, concise subtitle language appropriate for on-screen display
+- Keep the same line structure and blank lines
+- Do not add notes or explanations — output ONLY the translated WebVTT content`
+
+export function buildCaptionTranslatePrompt(params: {
+  captions: string
+  targetLanguage: string
+}): string {
+  return `Translate the following WebVTT captions to ${params.targetLanguage}. Keep all timestamps unchanged.\n\n${params.captions}`
+}
+
+export function buildMultilingualGeneratePrompt(params: {
+  topic: string
+  language: string
+  durationSeconds: number
+  tone?: string
+  audience?: string
+}): string {
+  const wordCount = Math.round((params.durationSeconds / 60) * 150)
+  let prompt = `Write a video script in ${params.language} about: ${params.topic}. Target duration: ${params.durationSeconds} seconds (approximately ${wordCount} words equivalent in ${params.language}).`
+  prompt += `\n\nIMPORTANT: Write the ENTIRE script in ${params.language}. Do not write in English.`
+
+  if (params.tone) {
+    prompt += `\n\nTone: Write in a ${params.tone} tone.`
+  }
+  if (params.audience) {
+    prompt += `\nTarget audience: ${params.audience}.`
+  }
+
+  return prompt
+}
+
 export const ENHANCEMENT_PROMPTS: Record<string, string> = {
   professional: `Rewrite this video script to sound more professional and authoritative. Keep the same message and structure, but use more polished language, stronger transitions, and a confident tone. Output ONLY the rewritten script text, no explanations.`,
 
