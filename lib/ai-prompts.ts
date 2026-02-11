@@ -1,3 +1,20 @@
+export const TONE_OPTIONS: Record<string, string> = {
+  professional: 'Professional',
+  casual: 'Casual',
+  entertaining: 'Entertaining',
+  persuasive: 'Persuasive',
+  educational: 'Educational',
+  inspirational: 'Inspirational',
+}
+
+export const DURATION_OPTIONS = [
+  { value: 15, label: '15s' },
+  { value: 30, label: '30s' },
+  { value: 60, label: '60s' },
+  { value: 90, label: '90s' },
+  { value: 120, label: '2min' },
+]
+
 export const SCRIPT_WRITER_SYSTEM = `You are a professional video scriptwriter. Write spoken video scripts that sound natural when read aloud by an AI avatar.
 
 Rules:
@@ -7,6 +24,63 @@ Rules:
 - Start with a hook to capture attention
 - End with a clear call-to-action or conclusion
 - Do not include any formatting, headers, or markdown — just the script text`
+
+export function buildGeneratePrompt(params: {
+  topic: string
+  durationSeconds: number
+  tone?: string
+  audience?: string
+  customInstructions?: string
+}): string {
+  const wordCount = Math.round((params.durationSeconds / 60) * 150)
+  let prompt = `Write a video script about: ${params.topic}. Target duration: ${params.durationSeconds} seconds (approximately ${wordCount} words).`
+
+  if (params.tone) {
+    prompt += `\n\nTone: Write in a ${params.tone} tone.`
+  }
+  if (params.audience) {
+    prompt += `\nTarget audience: ${params.audience}.`
+  }
+  if (params.customInstructions) {
+    prompt += `\n\nAdditional instructions: ${params.customInstructions}`
+  }
+
+  return prompt
+}
+
+export const TEMPLATE_GENERATOR_SYSTEM = `You are a professional video scriptwriter. Generate a spoken video script based on the template structure provided. The script should sound natural when read aloud by an AI avatar.
+
+Rules:
+- Write ONLY the spoken words — no stage directions, no "[pause]", no scene descriptions
+- Follow the structural template closely (same flow and sections) but create original content
+- Target approximately 150 words per minute of video
+- Use short, clear sentences that flow naturally
+- Do not include any formatting, headers, or markdown — just the script text`
+
+export function buildTemplatePrompt(params: {
+  templateTitle: string
+  structurePrompt: string
+  estimatedDuration: string
+  productName?: string
+  audience?: string
+  tone?: string
+}): string {
+  let prompt = `Generate a "${params.templateTitle}" video script.`
+  prompt += `\nStructure to follow: ${params.structurePrompt}`
+  prompt += `\nTarget duration: ${params.estimatedDuration}.`
+
+  if (params.productName) {
+    prompt += `\nProduct/Topic: ${params.productName}.`
+  }
+  if (params.audience) {
+    prompt += `\nTarget audience: ${params.audience}.`
+  }
+  if (params.tone) {
+    prompt += `\nTone: Write in a ${params.tone} tone.`
+  }
+
+  return prompt
+}
 
 export const ENHANCEMENT_PROMPTS: Record<string, string> = {
   professional: `Rewrite this video script to sound more professional and authoritative. Keep the same message and structure, but use more polished language, stronger transitions, and a confident tone. Output ONLY the rewritten script text, no explanations.`,

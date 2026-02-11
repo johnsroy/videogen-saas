@@ -40,6 +40,16 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialA
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Check for prefilled script from Smart Editing "Use in Video"
+  useEffect(() => {
+    const prefill = sessionStorage.getItem('prefill-script')
+    if (prefill) {
+      sessionStorage.removeItem('prefill-script')
+      setMode('avatar')
+      setScript(prefill)
+    }
+  }, [])
+
   // Listen for remix events from the video player dialog
   useEffect(() => {
     function handleRemix(e: Event) {

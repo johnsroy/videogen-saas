@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { chatCompletion } from '@/lib/anthropic'
-import { SCRIPT_WRITER_SYSTEM, buildGeneratePrompt } from '@/lib/ai-prompts'
+import { TEMPLATE_GENERATOR_SYSTEM, buildTemplatePrompt } from '@/lib/ai-prompts'
+import { getTemplateById } from '@/lib/script-templates'
 
 function getFirstDayOfMonth(): string {
   const now = new Date()
@@ -19,25 +20,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { topic, duration_seconds, tone, audience, custom_instructions } = body
+    const { template_id, product_name, audience, tone } = body
 
-    if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
-      return NextResponse.json({ error: 'Topic is required' }, { status: 400 })
+    if (!template_id || typeof template_id !== 'string') {
+      return NextResponse.json({ error: 'Template ID is required' }, { status: 400 })
     }
 
-    if (topic.length > 500) {
-      return NextResponse.json({ error: 'Topic exceeds 500 character limit' }, { status: 400 })
+    const template = getTemplateById(template_id)
+    if (!template) {
+      return NextResponse.json({ error: 'Template not found' }, { status: 404 })
+    }
+
+    if (product_name && typeof product_name === 'string' && product_name.length > 200) {
+      return NextResponse.json({ error: 'Product name exceeds 200 character limit' }, { status: 400 })
     }
 
     if (audience && typeof audience === 'string' && audience.length > 200) {
       return NextResponse.json({ error: 'Audience exceeds 200 character limit' }, { status: 400 })
     }
-
-    if (custom_instructions && typeof custom_instructions === 'string' && custom_instructions.length > 500) {
-      return NextResponse.json({ error: 'Custom instructions exceed 500 character limit' }, { status: 400 })
-    }
-
-    const targetDuration = duration_seconds ?? 60
 
     // Check rate limits
     const { data: subscription } = await getSupabaseAdmin()
@@ -63,16 +63,17 @@ export async function POST(request: Request) {
       }
     }
 
-    const userPrompt = buildGeneratePrompt({
-      topic: topic.trim(),
-      durationSeconds: targetDuration,
-      tone: typeof tone === 'string' ? tone : undefined,
+    const userPrompt = buildTemplatePrompt({
+      templateTitle: template.title,
+      structurePrompt: template.structurePrompt,
+      estimatedDuration: template.estimatedDuration,
+      productName: typeof product_name === 'string' ? product_name : undefined,
       audience: typeof audience === 'string' ? audience : undefined,
-      customInstructions: typeof custom_instructions === 'string' ? custom_instructions : undefined,
+      tone: typeof tone === 'string' ? tone : undefined,
     })
 
     const result = await chatCompletion({
-      system: SCRIPT_WRITER_SYSTEM,
+      system: TEMPLATE_GENERATOR_SYSTEM,
       user: userPrompt,
       maxTokens: 2000,
       temperature: 0.7,
@@ -83,15 +84,15 @@ export async function POST(request: Request) {
       .from('script_enhancements')
       .insert({
         user_id: user.id,
-        action: 'generate',
-        input_text: topic.trim(),
+        action: 'generate_from_template',
+        input_text: `template:${template_id}`,
         output_text: result.content,
       })
 
     return NextResponse.json({ script: result.content })
   } catch (error) {
-    console.error('Generate script error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to generate script'
+    console.error('Generate from template error:', error)
+    const message = error instanceof Error ? error.message : 'Failed to generate script from template'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

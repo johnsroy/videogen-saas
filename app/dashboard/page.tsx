@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { SubscriptionActions } from '@/components/dashboard/subscription-actions'
 import { VideoGenerationCard } from '@/components/dashboard/video-generation-card'
 import { VideoGallery } from '@/components/dashboard/video-gallery'
+import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { listAvatars, listVoices } from '@/lib/heygen'
 import type { VideoRecord } from '@/lib/heygen-types'
 
@@ -70,6 +71,8 @@ export default async function DashboardPage() {
           Welcome back, {user.email}
         </p>
       </div>
+
+      <DashboardNav />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Subscription Card */}

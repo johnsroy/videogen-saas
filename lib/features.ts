@@ -30,7 +30,7 @@ export const features: Feature[] = [
     title: 'Smart Editing',
     description: 'Automatically enhance your videos with AI-powered color correction, transitions, and effects.',
     longDescription:
-      'Smart Editing uses AI to automatically improve your videos with professional-grade enhancements. From color grading to seamless transitions, every edit is applied intelligently based on your content.',
+      'Smart Editing uses AI to supercharge your video workflow. Generate scripts from any topic with one click, enhance tone and clarity, auto-generate captions, remix existing videos with different settings, and add background music — all from your dashboard.',
     showcaseItems: [
       'AI-powered script generation from any topic',
       'One-click script enhancement (tone, grammar, length)',

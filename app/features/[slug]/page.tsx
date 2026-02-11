@@ -2,15 +2,12 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ArrowLeft, Check } from 'lucide-react'
-import { getFeatureBySlug, getAllFeatureSlugs } from '@/lib/features'
+import { getFeatureBySlug } from '@/lib/features'
+import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/landing/header'
 import { Footer } from '@/components/landing/footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-
-export function generateStaticParams() {
-  return getAllFeatureSlugs().map((slug) => ({ slug }))
-}
 
 export async function generateMetadata({
   params,
@@ -38,6 +35,10 @@ export default async function FeaturePage({
     notFound()
   }
 
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const ctaHref = user ? '/dashboard' : '/signup'
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -62,7 +63,7 @@ export default async function FeaturePage({
                 {feature.longDescription}
               </p>
               <Button asChild size="lg" className="w-fit">
-                <Link href="/signup">Get Started</Link>
+                <Link href={ctaHref}>Get Started</Link>
               </Button>
             </div>
 
@@ -93,7 +94,7 @@ export default async function FeaturePage({
               Create your first AI-powered video in minutes.
             </p>
             <Button asChild size="lg" className="mt-6">
-              <Link href="/signup">Start Free</Link>
+              <Link href={ctaHref}>{user ? 'Go to Dashboard' : 'Start Free'}</Link>
             </Button>
           </div>
         </div>
