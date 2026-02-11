@@ -18,18 +18,16 @@ import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
 import { ScriptAiTools } from './script-ai-tools'
 import { Video, Wand2, Loader2 } from 'lucide-react'
-import type { HeyGenAvatar, HeyGenVoice, VideoRecord } from '@/lib/heygen-types'
+import type { VideoRecord } from '@/lib/heygen-types'
 
 interface VideoGenerationCardProps {
   plan: string
   isProPlan: boolean
   videosThisMonth: number
-  initialAvatars: HeyGenAvatar[]
-  initialVoices: HeyGenVoice[]
   aiUsageThisMonth: number
 }
 
-export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialAvatars, initialVoices, aiUsageThisMonth }: VideoGenerationCardProps) {
+export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageThisMonth }: VideoGenerationCardProps) {
   const [mode, setMode] = useState<'avatar' | 'prompt'>('avatar')
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
@@ -140,8 +138,8 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, initialA
           </TabsList>
 
           <TabsContent value="avatar" className="mt-4 space-y-4">
-            <AvatarPicker selected={selectedAvatar} onSelect={setSelectedAvatar} initialAvatars={initialAvatars} />
-            <VoicePicker selected={selectedVoice} onSelect={setSelectedVoice} initialVoices={initialVoices} />
+            <AvatarPicker selected={selectedAvatar} onSelect={setSelectedAvatar} />
+            <VoicePicker selected={selectedVoice} onSelect={setSelectedVoice} />
 
             <div className="space-y-2">
               <Label htmlFor="avatar-title">Title</Label>

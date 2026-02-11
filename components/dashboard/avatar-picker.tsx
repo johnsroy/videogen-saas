@@ -1,19 +1,41 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
 import type { HeyGenAvatar } from '@/lib/heygen-types'
 
 interface AvatarPickerProps {
   selected: string | null
   onSelect: (avatarId: string) => void
-  initialAvatars: HeyGenAvatar[]
 }
 
-export const AvatarPicker = memo(function AvatarPicker({ selected, onSelect, initialAvatars }: AvatarPickerProps) {
-  const avatars = initialAvatars
+export const AvatarPicker = memo(function AvatarPicker({ selected, onSelect }: AvatarPickerProps) {
+  const [avatars, setAvatars] = useState<HeyGenAvatar[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  if (avatars.length === 0) {
+  useEffect(() => {
+    fetch('/api/heygen/avatars')
+      .then((res) => res.json())
+      .then((data) => setAvatars(data.avatars ?? []))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Select Avatar</p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading avatars...
+        </div>
+      </div>
+    )
+  }
+
+  if (error || avatars.length === 0) {
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium">Select Avatar</p>

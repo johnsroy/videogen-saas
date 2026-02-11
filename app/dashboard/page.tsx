@@ -7,7 +7,6 @@ import { SubscriptionActions } from '@/components/dashboard/subscription-actions
 import { VideoGenerationCard } from '@/components/dashboard/video-generation-card'
 import { VideoGallery } from '@/components/dashboard/video-gallery'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
-import { listAvatars, listVoices } from '@/lib/heygen'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 export default async function DashboardPage() {
@@ -18,11 +17,19 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+  const [
+    { data: subscription },
+    { count: videosThisMonth },
+    { count: aiUsageThisMonth },
+    { data: recentVideos },
+  ] = await Promise.all([
+    supabase.from('subscriptions').select('*').eq('user_id', user.id).single(),
+    supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user.id).neq('status', 'failed').gte('created_at', firstDayOfMonth),
+    supabase.from('script_enhancements').select('*', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', firstDayOfMonth),
+    supabase.from('videos').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
+  ])
 
   const plan = subscription?.plan ?? 'free'
   const status = subscription?.status ?? 'active'
@@ -34,34 +41,6 @@ export default async function DashboardPage() {
         year: 'numeric',
       })
     : null
-
-  // Count videos this month
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-  const { count: videosThisMonth } = await supabase
-    .from('videos')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .neq('status', 'failed')
-    .gte('created_at', firstDayOfMonth)
-
-  // Count AI usage this month
-  const { count: aiUsageThisMonth } = await supabase
-    .from('script_enhancements')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', firstDayOfMonth)
-
-  // Prefetch avatars and voices server-side (parallel with video queries)
-  const [avatarsResult, voicesResult, { data: recentVideos }] = await Promise.all([
-    listAvatars().catch(() => []),
-    listVoices().catch(() => []),
-    supabase
-    .from('videos')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(20),
-  ])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -132,8 +111,6 @@ export default async function DashboardPage() {
             plan={plan}
             isProPlan={isProPlan}
             videosThisMonth={videosThisMonth ?? 0}
-            initialAvatars={avatarsResult}
-            initialVoices={voicesResult}
             aiUsageThisMonth={aiUsageThisMonth ?? 0}
           />
         </div>

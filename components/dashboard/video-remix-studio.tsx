@@ -39,25 +39,23 @@ export function VideoRemixStudio({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Lazy-load avatars and voices client-side (only when user opens remix)
+  // Lazy-load avatar/voice names for displaying original video info
   const [avatars, setAvatars] = useState<HeyGenAvatar[]>([])
   const [voices, setVoices] = useState<HeyGenVoice[]>([])
-  const [loadingPickers, setLoadingPickers] = useState(false)
 
   const selectedVideo = completedVideos.find((v) => v.id === selectedVideoId)
   const limitReached = !isProPlan && videosThisMonth >= 5
 
-  // Fetch avatars/voices when user first selects a video
+  // Fetch avatar/voice names when user first selects a video
   useEffect(() => {
     if (!selectedVideoId || avatars.length > 0) return
-    setLoadingPickers(true)
     Promise.all([
-      fetch('/api/heygen/avatars').then((r) => r.json()).catch(() => []),
-      fetch('/api/heygen/voices').then((r) => r.json()).catch(() => []),
+      fetch('/api/heygen/avatars').then((r) => r.json()).catch(() => ({ avatars: [] })),
+      fetch('/api/heygen/voices').then((r) => r.json()).catch(() => ({ voices: [] })),
     ]).then(([avatarData, voiceData]) => {
       setAvatars(avatarData.avatars ?? [])
       setVoices(voiceData.voices ?? [])
-    }).finally(() => setLoadingPickers(false))
+    })
   }, [selectedVideoId, avatars.length])
 
   function handleVideoSelect(videoId: string) {
@@ -210,18 +208,9 @@ export function VideoRemixStudio({
               </div>
             </div>
 
-            {/* Avatar and voice pickers — lazy loaded */}
-            {loadingPickers ? (
-              <div className="flex items-center gap-2 py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading avatars and voices...</span>
-              </div>
-            ) : (
-              <>
-                <AvatarPicker selected={avatarId} onSelect={setAvatarId} initialAvatars={avatars} />
-                <VoicePicker selected={voiceId} onSelect={setVoiceId} initialVoices={voices} />
-              </>
-            )}
+            {/* Avatar and voice pickers — self-loading */}
+            <AvatarPicker selected={avatarId} onSelect={setAvatarId} />
+            <VoicePicker selected={voiceId} onSelect={setVoiceId} />
 
             {/* Script */}
             <div className="space-y-2">
@@ -242,7 +231,7 @@ export function VideoRemixStudio({
             {/* Generate button */}
             <Button
               onClick={handleRemix}
-              disabled={isGenerating || limitReached || loadingPickers || !title.trim() || !script.trim() || !avatarId || !voiceId}
+              disabled={isGenerating || limitReached || !title.trim() || !script.trim() || !avatarId || !voiceId}
               className="w-full"
             >
               {isGenerating ? (

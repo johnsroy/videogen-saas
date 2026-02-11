@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -8,18 +8,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Loader2 } from 'lucide-react'
 import type { HeyGenVoice } from '@/lib/heygen-types'
 
 interface VoicePickerProps {
   selected: string | null
   onSelect: (voiceId: string) => void
-  initialVoices: HeyGenVoice[]
 }
 
-export const VoicePicker = memo(function VoicePicker({ selected, onSelect, initialVoices }: VoicePickerProps) {
-  const voices = initialVoices
+export const VoicePicker = memo(function VoicePicker({ selected, onSelect }: VoicePickerProps) {
+  const [voices, setVoices] = useState<HeyGenVoice[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  if (voices.length === 0) {
+  useEffect(() => {
+    fetch('/api/heygen/voices')
+      .then((res) => res.json())
+      .then((data) => setVoices(data.voices ?? []))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Select Voice</p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading voices...
+        </div>
+      </div>
+    )
+  }
+
+  if (error || voices.length === 0) {
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium">Select Voice</p>
