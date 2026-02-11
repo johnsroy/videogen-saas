@@ -12,6 +12,7 @@ import { Download } from 'lucide-react'
 import { CaptionOverlay } from './caption-overlay'
 import { RemixButton } from './remix-button'
 import { BackgroundMusicMixer } from './background-music-mixer'
+import { ShareButton } from './analytics/share-button'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 interface VideoPlayerDialogProps {
@@ -54,6 +55,7 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
               <span>Created: {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <div className="flex items-center gap-2">
+              <ShareButton videoId={video.id} videoStatus={video.status} />
               <RemixButton video={video} onClose={() => onOpenChange(false)} />
               {video.video_url && (
                 <Button variant="outline" size="sm" asChild>

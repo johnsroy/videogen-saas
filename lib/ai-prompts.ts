@@ -161,3 +161,48 @@ export const ENHANCEMENT_LABELS: Record<string, string> = {
   longer: 'Make Longer',
   hook_cta: 'Add Hook & CTA',
 }
+
+// --- Analytics Insights prompts ---
+
+export const ANALYTICS_INSIGHTS_SYSTEM = `You are an analytics expert for a video creation platform. Analyze the user's video creation and performance data and generate exactly 4 actionable insights.
+
+Each insight should:
+- Be specific and data-driven (reference actual numbers from the data)
+- Include a clear, actionable recommendation
+- Be concise (1-2 sentences max)
+- Cover different aspects: one about content strategy, one about format/duration, one about engagement, one about growth
+
+Respond ONLY with a JSON array — no markdown, no code fences, no explanation:
+[{"icon": "...", "title": "...", "description": "...", "category": "..."}]
+
+Valid icons: "trending-up", "globe", "clock", "sparkles", "target", "bar-chart", "zap", "users"
+Valid categories: "performance", "content", "engagement", "growth"
+
+If there is very little data, still provide 4 helpful getting-started tips based on what you can see.`
+
+export function buildAnalyticsInsightsPrompt(data: {
+  totalVideos: number
+  totalViews: number
+  avgCompletionRate: number
+  languageBreakdown: { language: string; count: number }[]
+  modeBreakdown: { mode: string; count: number }[]
+  dimensionBreakdown: { dimension: string; count: number }[]
+  avgDuration: number
+  aiFeatureUsage: number
+  topVideoTitle: string | null
+  topVideoViews: number
+}): string {
+  return `Here is the user's video analytics data:
+
+- Total videos created: ${data.totalVideos}
+- Total views (across shared videos): ${data.totalViews}
+- Average completion rate: ${data.avgCompletionRate}%
+- Average video duration: ${data.avgDuration}s
+- AI features used: ${data.aiFeatureUsage} times
+- Top video: "${data.topVideoTitle || 'N/A'}" with ${data.topVideoViews} views
+- Language breakdown: ${data.languageBreakdown.map(l => `${l.language}: ${l.count}`).join(', ') || 'No data'}
+- Mode breakdown: ${data.modeBreakdown.map(m => `${m.mode}: ${m.count}`).join(', ') || 'No data'}
+- Dimension breakdown: ${data.dimensionBreakdown.map(d => `${d.dimension}: ${d.count}`).join(', ') || 'No data'}
+
+Generate 4 actionable insights based on this data.`
+}
