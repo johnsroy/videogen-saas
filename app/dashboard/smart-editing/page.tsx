@@ -21,6 +21,7 @@ export default async function SmartEditingPage() {
     { count: aiUsageThisMonth },
     { count: videosThisMonth },
     { data: completedVideos },
+    { data: creditBalance },
   ] = await Promise.all([
     supabase.from('subscriptions').select('*').eq('user_id', user.id).single(),
     supabase
@@ -41,6 +42,11 @@ export default async function SmartEditingPage() {
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(50),
+    supabase
+      .from('credit_balances')
+      .select('credits_remaining')
+      .eq('user_id', user.id)
+      .single(),
   ])
 
   const plan = subscription?.plan ?? 'free'
@@ -63,6 +69,7 @@ export default async function SmartEditingPage() {
         aiUsageThisMonth={aiUsageThisMonth ?? 0}
         videosThisMonth={videosThisMonth ?? 0}
         completedVideos={(completedVideos ?? []) as VideoRecord[]}
+        creditsRemaining={creditBalance?.credits_remaining ?? 0}
       />
     </div>
   )

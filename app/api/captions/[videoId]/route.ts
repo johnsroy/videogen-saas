@@ -33,3 +33,55 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch captions' }, { status: 500 })
   }
 }
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ videoId: string }> }
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { videoId } = await params
+    const body = await request.json()
+    const { content, styles } = body
+
+    if (!content || typeof content !== 'string') {
+      return NextResponse.json({ error: 'Caption content is required' }, { status: 400 })
+    }
+
+    // Upsert caption
+    const { data: existing } = await getSupabaseAdmin()
+      .from('captions')
+      .select('id')
+      .eq('video_id', videoId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (existing) {
+      await getSupabaseAdmin()
+        .from('captions')
+        .update({ content, styles: styles || {} })
+        .eq('id', existing.id)
+        .eq('user_id', user.id)
+    } else {
+      await getSupabaseAdmin()
+        .from('captions')
+        .insert({
+          video_id: videoId,
+          user_id: user.id,
+          content,
+          styles: styles || {},
+        })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Save caption error:', error)
+    return NextResponse.json({ error: 'Failed to save captions' }, { status: 500 })
+  }
+}

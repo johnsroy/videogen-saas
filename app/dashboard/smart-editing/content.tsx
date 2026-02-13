@@ -1,10 +1,13 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FileText, Film } from 'lucide-react'
 import { AiScriptStudio } from '@/components/dashboard/ai-script-studio'
 import { CaptionGenerator } from '@/components/dashboard/caption-generator'
 import { ScriptTemplates } from '@/components/dashboard/script-templates'
 import { VideoRemixStudio } from '@/components/dashboard/video-remix-studio'
+import { VideoEditorHub } from '@/components/dashboard/video-editor-hub'
 import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
 
@@ -13,6 +16,7 @@ interface SmartEditingContentProps {
   aiUsageThisMonth: number
   videosThisMonth: number
   completedVideos: VideoRecord[]
+  creditsRemaining: number
 }
 
 export function SmartEditingContent({
@@ -20,6 +24,7 @@ export function SmartEditingContent({
   aiUsageThisMonth,
   videosThisMonth,
   completedVideos,
+  creditsRemaining,
 }: SmartEditingContentProps) {
   const studioRef = useRef<HTMLDivElement>(null)
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false)
@@ -58,7 +63,6 @@ export function SmartEditingContent({
       }
       setStudioScript(data.script)
     } catch (err) {
-      // Error will be visible in the template card's loading state ending
       console.error('Template generation error:', err)
     } finally {
       setIsGeneratingTemplate(false)
@@ -66,31 +70,55 @@ export function SmartEditingContent({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Row 1: AI Script Studio + Script Templates */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div ref={studioRef}>
-          <AiScriptStudio
-            planId={planId}
-            aiUsageThisMonth={aiUsageThisMonth}
-          />
-        </div>
-        <ScriptTemplates
-          onSelectTemplate={handleTemplateSelect}
-          onGenerateFromTemplate={handleGenerateFromTemplate}
-          isGeneratingTemplate={isGeneratingTemplate}
-        />
-      </div>
+    <Tabs defaultValue="scripts">
+      <TabsList>
+        <TabsTrigger value="scripts" className="gap-1.5">
+          <FileText className="h-3.5 w-3.5" />
+          Scripts
+        </TabsTrigger>
+        <TabsTrigger value="editor" className="gap-1.5">
+          <Film className="h-3.5 w-3.5" />
+          Video Editor
+        </TabsTrigger>
+      </TabsList>
 
-      {/* Row 2: Caption Generator + Video Remix Studio */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <CaptionGenerator completedVideos={completedVideos} />
-        <VideoRemixStudio
+      <TabsContent value="scripts" className="mt-4">
+        <div className="space-y-6">
+          {/* Row 1: AI Script Studio + Script Templates */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div ref={studioRef}>
+              <AiScriptStudio
+                planId={planId}
+                aiUsageThisMonth={aiUsageThisMonth}
+              />
+            </div>
+            <ScriptTemplates
+              onSelectTemplate={handleTemplateSelect}
+              onGenerateFromTemplate={handleGenerateFromTemplate}
+              isGeneratingTemplate={isGeneratingTemplate}
+            />
+          </div>
+
+          {/* Row 2: Caption Generator + Video Remix Studio */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <CaptionGenerator completedVideos={completedVideos} />
+            <VideoRemixStudio
+              completedVideos={completedVideos}
+              planId={planId}
+              videosThisMonth={videosThisMonth}
+            />
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="editor" className="mt-4">
+        <VideoEditorHub
           completedVideos={completedVideos}
           planId={planId}
           videosThisMonth={videosThisMonth}
+          creditsRemaining={creditsRemaining}
         />
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
   )
 }
