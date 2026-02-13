@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getPlanFromPriceId } from '@/lib/plans'
-import { allocateCredits } from '@/lib/credits'
+import { allocateCredits, grantCreditPurchase } from '@/lib/credits'
 import Stripe from 'stripe'
 
 export async function POST(request: Request) {
@@ -30,6 +30,21 @@ export async function POST(request: Request) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+
+        // Handle one-time credit pack purchases
+        if (session.mode === 'payment' && session.metadata?.type === 'credit_pack') {
+          const userId = session.metadata.supabase_user_id
+          const credits = parseInt(session.metadata.credits ?? '0', 10)
+          const packId = session.metadata.pack_id ?? 'unknown'
+
+          if (userId && credits > 0) {
+            await grantCreditPurchase({ userId, amount: credits, packId })
+            console.log(`Credit pack granted: ${credits} credits to user ${userId}`)
+          }
+          break
+        }
+
+        // Handle subscription checkout
         if (session.mode === 'subscription' && session.subscription) {
           const subscription = await getStripe().subscriptions.retrieve(
             session.subscription as string

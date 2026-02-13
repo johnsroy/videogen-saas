@@ -7,10 +7,10 @@ import { AlertTriangle, Zap, Sparkles } from 'lucide-react'
 function getEstimates(veoModel: string | null) {
   const isFast = veoModel === 'veo-3.1-fast-generate-preview'
   return {
-    estimated: isFast ? 30_000 : 5 * 60_000,       // 30s vs 5min
-    warning: isFast ? 2 * 60_000 : 10 * 60_000,    // 2min vs 10min
-    stall: isFast ? 5 * 60_000 : 15 * 60_000,      // 5min vs 15min
-    label: isFast ? 'Draft' : 'Standard',
+    estimated: isFast ? 30_000 : 7 * 60_000,       // 30s vs 7min
+    warning: isFast ? 2 * 60_000 : 12 * 60_000,    // 2min vs 12min
+    stall: isFast ? 5 * 60_000 : 20 * 60_000,      // 5min vs 20min
+    label: isFast ? 'Draft' : 'Standard 4K',
   }
 }
 

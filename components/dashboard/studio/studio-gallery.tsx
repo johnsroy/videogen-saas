@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Film, Play, Download, Maximize2, X, Loader2 } from 'lucide-react'
+import { Film, Play, Download, Maximize2, X, Loader2, Trash2 } from 'lucide-react'
 import { VideoStatusBadge } from '../video-status-badge'
 import { VideoProgressBar } from '../video-progress-bar'
 import { VideoPlayerDialog } from '../video-player-dialog'
@@ -36,6 +36,8 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [modeFilter, setModeFilter] = useState('all')
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const videosRef = useRef(videos)
   videosRef.current = videos
@@ -149,12 +151,41 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
     }
   }
 
-  const filteredVideos = modeFilter === 'all'
-    ? videos
-    : videos.filter((v) => v.mode === modeFilter)
+  async function handleDelete(videoId: string) {
+    if (confirmDeleteId !== videoId) {
+      setConfirmDeleteId(videoId)
+      return
+    }
+    setDeletingId(videoId)
+    setConfirmDeleteId(null)
+    try {
+      const res = await fetch(`/api/videos/${videoId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setVideos((prev) => prev.filter((v) => v.id !== videoId))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const isProcessing = (status: string) =>
     status === 'pending' || status === 'processing'
+
+  const baseFiltered = modeFilter === 'all'
+    ? videos
+    : videos.filter((v) => v.mode === modeFilter)
+
+  // Sort: processing first, then by created_at desc
+  const filteredVideos = [...baseFiltered].sort((a, b) => {
+    const aProc = isProcessing(a.status) ? 0 : 1
+    const bProc = isProcessing(b.status) ? 0 : 1
+    if (aProc !== bProc) return aProc - bProc
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const processingVideos = videos.filter((v) => isProcessing(v.status))
 
   if (isLoading) {
     return (
@@ -181,6 +212,24 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
           </SelectContent>
         </Select>
       </div>
+
+      {processingVideos.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">
+              {processingVideos.length} video{processingVideos.length > 1 ? 's' : ''} generating
+            </p>
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+              {processingVideos.map((v, i) => (
+                <span key={v.id} className="text-xs text-muted-foreground">
+                  {i + 1}. {v.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredVideos.length === 0 ? (
         <Card className="p-8">
@@ -214,7 +263,9 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-10 w-10 animate-spin rounded-full border-3 border-primary border-t-transparent" />
                     <p className="text-xs font-medium text-muted-foreground">
-                      {video.status === 'pending' ? 'Queued...' : 'Rendering...'}
+                      {processingVideos.length > 1
+                        ? `Queued (${processingVideos.findIndex((p) => p.id === video.id) + 1} of ${processingVideos.length})`
+                        : video.status === 'pending' ? 'Queued...' : 'Rendering...'}
                     </p>
                   </div>
                 ) : video.status === 'completed' ? (
@@ -249,7 +300,7 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
                   <p className="truncate text-sm font-medium">{video.title}</p>
                   <div className="flex items-center gap-1">
                     <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                      {video.veo_model === 'veo-3.1-fast-generate-preview' ? 'Fast' : 'HD'}
+                      {video.veo_model === 'veo-3.1-fast-generate-preview' ? 'Fast' : '4K'}
                     </span>
                     {video.audio_enabled && (
                       <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
@@ -266,35 +317,56 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
                     <p className="text-xs text-muted-foreground">
                       {video.credits_used} credits
                     </p>
-                    {video.status === 'completed' && (
+                    {(video.status === 'completed' || video.status === 'failed') && (
                       <div className="flex gap-1">
+                        {video.status === 'completed' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const url = video.video_url?.includes('supabase.co/storage/')
+                                  ? video.video_url
+                                  : `/api/veo/download/${video.id}`
+                                window.open(url, '_blank')
+                              }}
+                            >
+                              <Download className="h-3 w-3" />
+                            </Button>
+                            {onExtendVideo && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onExtendVideo(video.id)
+                                }}
+                              >
+                                <Maximize2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6"
+                          className={`h-6 w-6 ${confirmDeleteId === video.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
                           onClick={(e) => {
                             e.stopPropagation()
-                            const url = video.video_url?.includes('supabase.co/storage/')
-                              ? video.video_url
-                              : `/api/veo/download/${video.id}`
-                            window.open(url, '_blank')
+                            handleDelete(video.id)
                           }}
+                          disabled={deletingId === video.id}
+                          title={confirmDeleteId === video.id ? 'Click again to confirm' : 'Delete video'}
                         >
-                          <Download className="h-3 w-3" />
+                          {deletingId === video.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
                         </Button>
-                        {onExtendVideo && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onExtendVideo(video.id)
-                            }}
-                          >
-                            <Maximize2 className="h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>

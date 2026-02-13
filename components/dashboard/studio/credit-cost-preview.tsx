@@ -26,11 +26,11 @@ export function CreditCostPreview({ creditsRemaining }: CreditCostPreviewProps) 
           <p className="font-medium text-foreground">Cost per video</p>
           <div className="space-y-1">
             <div className="flex justify-between">
-              <span>Standard HD (4s)</span>
+              <span>Standard 4K (4s)</span>
               <span className="font-medium">8 credits</span>
             </div>
             <div className="flex justify-between">
-              <span>Standard HD (8s)</span>
+              <span>Standard 4K (8s)</span>
               <span className="font-medium">16 credits</span>
             </div>
             <div className="flex justify-between">

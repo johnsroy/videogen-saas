@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { PLANS, type PlanId } from '@/lib/plans'
-import { Check, ArrowUpRight, Loader2 } from 'lucide-react'
+import { Check, ArrowUpRight, Loader2, Coins } from 'lucide-react'
 
 type UpgradeReason = 'video_limit' | 'ai_limit' | 'credits_exhausted' | 'ugc_access' | 'veo_access' | 'video_extension'
 
@@ -34,7 +34,7 @@ const REASON_CONFIG: Record<UpgradeReason, { title: string; description: string;
   },
   credits_exhausted: {
     title: 'AI Video credits exhausted',
-    description: 'You\'ve used all your AI Video credits. Upgrade for more credits each month.',
+    description: 'You\'ve used all your AI Video credits. Upgrade your plan or buy a credit pack.',
     suggestedPlan: 'creator',
   },
   ugc_access: {
@@ -55,7 +55,7 @@ const REASON_CONFIG: Record<UpgradeReason, { title: string; description: string;
 }
 
 export function UpgradeModal({ open, onOpenChange, reason, currentPlan }: UpgradeModalProps) {
-  const [loading, setLoading] = useState<PlanId | null>(null)
+  const [loading, setLoading] = useState<string | null>(null)
   const config = REASON_CONFIG[reason]
   const suggestedPlan = PLANS[config.suggestedPlan]
 
@@ -83,6 +83,24 @@ export function UpgradeModal({ open, onOpenChange, reason, currentPlan }: Upgrad
     }
   }
 
+  async function handleBuyCredits(packId: string) {
+    setLoading(packId)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'credit_pack', packId }),
+      })
+      const { url, error } = await res.json()
+      if (error) throw new Error(error)
+      if (url) window.location.href = url
+    } catch (err) {
+      console.error('Credit pack checkout error:', err)
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -91,6 +109,42 @@ export function UpgradeModal({ open, onOpenChange, reason, currentPlan }: Upgrad
           <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 pt-2">
+          {reason === 'credits_exhausted' && (
+            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+                <Coins className="h-4 w-4 text-primary" />
+                Quick top-up
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'pack_25', credits: 25, price: '$9.99' },
+                  { id: 'pack_50', credits: 50, price: '$17.99' },
+                ].map((pack) => (
+                  <Button
+                    key={pack.id}
+                    size="sm"
+                    variant="outline"
+                    className="h-auto flex-col gap-0.5 py-2"
+                    onClick={() => handleBuyCredits(pack.id)}
+                    disabled={loading !== null}
+                  >
+                    {loading === pack.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <span className="font-semibold">{pack.credits} credits</span>
+                        <span className="text-[10px] text-muted-foreground">{pack.price}</span>
+                      </>
+                    )}
+                  </Button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+                One-time purchase, no subscription needed
+              </p>
+            </div>
+          )}
+
           {upgradePlans.map((planId) => {
             const plan = PLANS[planId]
             const isSuggested = planId === config.suggestedPlan

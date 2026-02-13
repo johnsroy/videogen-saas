@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card } from '@/components/ui/card'
-import { Film, Play } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Film, Play, Loader2, X, Trash2 } from 'lucide-react'
 import { VideoStatusBadge } from './video-status-badge'
 import { VideoPlayerDialog } from './video-player-dialog'
 import { VideoProgressBar } from './video-progress-bar'
@@ -25,6 +26,9 @@ interface VideoGalleryProps {
 export function VideoGallery({ initialVideos }: VideoGalleryProps) {
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos)
   const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const videosRef = useRef(videos)
   videosRef.current = videos
@@ -104,6 +108,48 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
     }
   }, [pollStatuses])
 
+  async function handleCancel(videoId: string) {
+    setCancellingId(videoId)
+    try {
+      const res = await fetch('/api/veo/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId }),
+      })
+      if (res.ok) {
+        const { video: updated } = await res.json()
+        if (updated) {
+          setVideos((prev) =>
+            prev.map((v) => (v.id === videoId ? { ...v, ...updated } : v))
+          )
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  async function handleDelete(videoId: string) {
+    if (confirmDeleteId !== videoId) {
+      setConfirmDeleteId(videoId)
+      return
+    }
+    setDeletingId(videoId)
+    setConfirmDeleteId(null)
+    try {
+      const res = await fetch(`/api/videos/${videoId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setVideos((prev) => prev.filter((v) => v.id !== videoId))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   if (videos.length === 0) {
     return (
       <Card className="p-8">
@@ -119,11 +165,40 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
 
   const isProcessing = (status: string) => status === 'pending' || status === 'processing'
 
+  // Sort: processing videos first, then by created_at desc
+  const sortedVideos = [...videos].sort((a, b) => {
+    const aProcessing = isProcessing(a.status) ? 0 : 1
+    const bProcessing = isProcessing(b.status) ? 0 : 1
+    if (aProcessing !== bProcessing) return aProcessing - bProcessing
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const processingVideos = videos.filter((v) => isProcessing(v.status))
+
   return (
     <>
       <h2 className="mb-4 text-xl font-semibold">Your Videos</h2>
+
+      {processingVideos.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">
+              {processingVideos.length} video{processingVideos.length > 1 ? 's' : ''} generating
+            </p>
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+              {processingVideos.map((v, i) => (
+                <span key={v.id} className="text-xs text-muted-foreground">
+                  {i + 1}. {v.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {videos.map((video) => (
+        {sortedVideos.map((video) => (
           <Card
             key={video.id}
             className={`overflow-hidden transition-shadow ${video.status === 'completed' ? 'cursor-pointer hover:shadow-md' : ''}`}
@@ -149,6 +224,27 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
                 <Play className="h-10 w-10 text-muted-foreground/40" />
               ) : (
                 <Film className="h-8 w-8 text-muted-foreground/30" />
+              )}
+
+              {/* Cancel button overlay */}
+              {isProcessing(video.status) && video.provider === 'google_veo' && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2 h-7 gap-1 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleCancel(video.id)
+                  }}
+                  disabled={cancellingId === video.id}
+                >
+                  {cancellingId === video.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <X className="h-3 w-3" />
+                  )}
+                  Cancel
+                </Button>
               )}
             </div>
             <div className="p-3">
@@ -176,9 +272,30 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
               {isProcessing(video.status) ? (
                 <VideoProgressBar createdAt={video.created_at} veoModel={video.veo_model} />
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </p>
+                <div className="mt-1 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                  {(video.status === 'completed' || video.status === 'failed') && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-6 w-6 ${confirmDeleteId === video.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(video.id)
+                      }}
+                      disabled={deletingId === video.id}
+                      title={confirmDeleteId === video.id ? 'Click again to confirm' : 'Delete video'}
+                    >
+                      {deletingId === video.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
+                </div>
               )}
               {video.status === 'failed' && video.error_message && (
                 <p className="mt-1 text-xs text-destructive">{video.error_message}</p>

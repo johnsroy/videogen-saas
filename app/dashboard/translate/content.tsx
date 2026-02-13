@@ -11,6 +11,7 @@ interface TranslateContentProps {
   aiUsageThisMonth: number
   videosThisMonth: number
   completedVideos: VideoRecord[]
+  creditsRemaining: number
 }
 
 export function TranslateContent({
@@ -18,6 +19,7 @@ export function TranslateContent({
   aiUsageThisMonth,
   videosThisMonth,
   completedVideos,
+  creditsRemaining,
 }: TranslateContentProps) {
   return (
     <div className="space-y-6">
@@ -25,6 +27,7 @@ export function TranslateContent({
       <ScriptTranslator
         planId={planId}
         aiUsageThisMonth={aiUsageThisMonth}
+        creditsRemaining={creditsRemaining}
       />
 
       {/* Row 2: Multi-Language Video Creator + Caption Translator */}

@@ -108,12 +108,25 @@ export function Pricing({ user }: { user: User | null }) {
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-4">
                     {price !== null ? (
-                      <>
-                        <span className="text-4xl font-bold">${price}</span>
-                        <span className="text-muted-foreground">
-                          /{billingInterval === 'month' ? 'mo' : 'yr'}
-                        </span>
-                      </>
+                      <div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold">${price}</span>
+                          <span className="text-muted-foreground">
+                            /{billingInterval === 'month' ? 'mo' : 'yr'}
+                          </span>
+                        </div>
+                        {billingInterval === 'year' && plan.monthlyPrice !== null && plan.monthlyPrice > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            <p className="text-sm font-medium text-primary">
+                              ${Math.round((plan.yearlyPrice ?? 0) / 12)}/mo equivalent
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <span className="line-through">${plan.monthlyPrice * 12}/yr</span>
+                              {' '}at monthly rate
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-4xl font-bold">Custom</span>
                     )}

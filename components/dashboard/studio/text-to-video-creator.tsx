@@ -466,9 +466,9 @@ Or use AI Generate above to create a detailed cinematic prompt from just a brief
               >
                 <span className="flex items-center gap-1.5 text-xs font-medium">
                   <Sparkles className="h-3 w-3 text-violet-500" />
-                  Standard
+                  Standard 4K
                 </span>
-                <span className="text-[10px] text-muted-foreground">~5 minutes, higher quality</span>
+                <span className="text-[10px] text-muted-foreground">~5-10 min, highest quality</span>
               </button>
             </div>
           </div>

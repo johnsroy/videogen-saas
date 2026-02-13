@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { UsageCard } from '@/components/dashboard/usage-card'
+import { CreditPurchase } from '@/components/dashboard/credit-purchase'
 import { Loader2, ArrowDown, ArrowUp, Zap } from 'lucide-react'
 
 interface CreditTransaction {
@@ -64,6 +65,8 @@ export function UsageContent() {
           </CardContent>
         </Card>
       </div>
+
+      <CreditPurchase />
 
       <Card>
         <CardHeader>

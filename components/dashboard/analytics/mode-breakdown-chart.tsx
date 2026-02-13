@@ -55,7 +55,7 @@ export function ModeBreakdownChart({ data }: ModeBreakdownChartProps) {
             </ChartContainer>
             <div className="flex gap-4">
               {data.map((item, i) => (
-                <div key={item.name} className="flex items-center gap-1.5 text-xs">
+                <div key={`${item.name}-${i}`} className="flex items-center gap-1.5 text-xs">
                   <span
                     className="h-2 w-2 rounded-full"
                     style={{ backgroundColor: COLORS[i % COLORS.length] }}

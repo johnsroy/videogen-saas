@@ -190,6 +190,60 @@ export async function refundCredits(params: {
   return { success: true, remaining: newRemaining }
 }
 
+/** Grant credits from a one-time purchase (adds to existing balance). */
+export async function grantCreditPurchase(params: {
+  userId: string
+  amount: number
+  packId: string
+}): Promise<{ success: boolean; remaining: number }> {
+  const { userId, amount, packId } = params
+
+  const { data: bal } = await getSupabaseAdmin()
+    .from('credit_balances')
+    .select('credits_remaining, credits_total')
+    .eq('user_id', userId)
+    .single()
+
+  const currentRemaining = bal?.credits_remaining ?? 0
+  const currentTotal = bal?.credits_total ?? 0
+  const newRemaining = currentRemaining + amount
+  const newTotal = currentTotal + amount
+
+  if (bal) {
+    await getSupabaseAdmin()
+      .from('credit_balances')
+      .update({
+        credits_remaining: newRemaining,
+        credits_total: newTotal,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+  } else {
+    const periodEnd = new Date()
+    periodEnd.setDate(periodEnd.getDate() + 30)
+    await getSupabaseAdmin()
+      .from('credit_balances')
+      .insert({
+        user_id: userId,
+        credits_remaining: amount,
+        credits_total: amount,
+        period_end: periodEnd.toISOString(),
+      })
+  }
+
+  await getSupabaseAdmin()
+    .from('credit_transactions')
+    .insert({
+      user_id: userId,
+      amount,
+      balance_after: newRemaining,
+      type: 'purchase',
+      description: `Purchased ${amount} credits (${packId})`,
+    })
+
+  return { success: true, remaining: newRemaining }
+}
+
 /** Calculate credit cost for a NanoBanana video (legacy) */
 export function calculateVideoCreditCost(durationSec: number): number {
   return Math.max(1, Math.ceil(durationSec / 10))

@@ -4,7 +4,11 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getVeoOperationStatus } from '@/lib/google-veo'
 import { refundCredits } from '@/lib/credits'
 
-const TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes — auto-fail stuck operations
+/** Model-aware timeout — standard takes much longer than draft */
+function getTimeoutMs(veoModel: string | null): number {
+  if (veoModel === 'veo-3.1-fast-generate-preview') return 5 * 60 * 1000  // 5 min
+  return 20 * 60 * 1000 // 20 min for standard
+}
 
 /**
  * Download a completed Veo video from Google and persist to Supabase Storage.
@@ -89,14 +93,16 @@ export async function GET(
       return NextResponse.json({ video })
     }
 
-    // Check for timeout — if generation has been running longer than 15 min, auto-fail
+    // Check for timeout — model-aware (5 min draft, 20 min standard)
     const createdAt = new Date(video.created_at).getTime()
     const elapsed = Date.now() - createdAt
+    const timeoutMs = getTimeoutMs(video.veo_model)
 
-    if (elapsed > TIMEOUT_MS) {
+    if (elapsed > timeoutMs) {
+      const timeoutMin = Math.round(timeoutMs / 60_000)
       const updates = {
         status: 'failed',
-        error_message: 'Generation timed out after 15 minutes. Credits have been refunded.',
+        error_message: `Generation timed out after ${timeoutMin} minutes. Credits have been refunded.`,
         updated_at: new Date().toISOString(),
       }
 
@@ -133,17 +139,33 @@ export async function GET(
       const videoId = video.id
       const userId = user.id
       const googleUri = status.videoUri
-      persistVeoVideo(googleUri, userId, videoId).then((persistedUrl) => {
-        if (persistedUrl) {
-          getSupabaseAdmin()
-            .from('videos')
-            .update({ video_url: persistedUrl })
-            .eq('id', videoId)
-            .eq('user_id', userId)
-            .then(() => console.log(`Video ${videoId}: persisted to storage`))
-        } else {
+      persistVeoVideo(googleUri, userId, videoId).then(async (persistedUrl) => {
+        if (!persistedUrl) {
           console.warn(`Video ${videoId}: failed to persist, Google URL will expire`)
+          return
         }
+        // Re-check status — user may have cancelled while we were downloading
+        const { data: current } = await getSupabaseAdmin()
+          .from('videos')
+          .select('status')
+          .eq('id', videoId)
+          .single()
+
+        if (current?.status === 'failed') {
+          // Video was cancelled — clean up the storage file we just uploaded
+          await getSupabaseAdmin().storage
+            .from('videos')
+            .remove([`${userId}/${videoId}.mp4`])
+          console.log(`Video ${videoId}: cancelled — cleaned up storage`)
+          return
+        }
+
+        await getSupabaseAdmin()
+          .from('videos')
+          .update({ video_url: persistedUrl })
+          .eq('id', videoId)
+          .eq('user_id', userId)
+        console.log(`Video ${videoId}: persisted to storage`)
       })
     } else if (status.done && status.error) {
       updates.status = 'failed'

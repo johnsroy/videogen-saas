@@ -166,6 +166,67 @@ export function getPlanFromPriceId(priceId: string): PlanId {
   return 'free'
 }
 
+/* ── Credit Packs (one-time purchases) ── */
+
+export interface CreditPack {
+  id: string
+  credits: number
+  price: number          // USD
+  perCredit: number      // price per credit
+  stripePriceId: string
+  badge?: string
+}
+
+export const CREDIT_PACKS: CreditPack[] = [
+  {
+    id: 'pack_5',
+    credits: 5,
+    price: 10,
+    perCredit: 2.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_5_PRICE_ID ?? '',
+    badge: 'Starter',
+  },
+  {
+    id: 'pack_25',
+    credits: 25,
+    price: 25,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_25_PRICE_ID ?? '',
+  },
+  {
+    id: 'pack_50',
+    credits: 50,
+    price: 50,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_50_PRICE_ID ?? '',
+  },
+  {
+    id: 'pack_100',
+    credits: 100,
+    price: 100,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_100_PRICE_ID ?? '',
+  },
+  {
+    id: 'pack_500',
+    credits: 500,
+    price: 500,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_500_PRICE_ID ?? '',
+    badge: 'Most Popular',
+  },
+]
+
+/** Look up a credit pack by its Stripe price ID */
+export function getCreditPackFromPriceId(priceId: string): CreditPack | undefined {
+  return CREDIT_PACKS.find((p) => p.stripePriceId && p.stripePriceId === priceId)
+}
+
+/** Look up a credit pack by its pack ID */
+export function getCreditPackById(packId: string): CreditPack | undefined {
+  return CREDIT_PACKS.find((p) => p.id === packId)
+}
+
 /** Recommend a plan based on onboarding answers */
 export function recommendPlan(answers: {
   companySize: string
