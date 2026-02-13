@@ -26,6 +26,8 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos)
   const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const videosRef = useRef(videos)
+  videosRef.current = videos
 
   // Listen for new video events from the generation card
   useEffect(() => {
@@ -39,55 +41,57 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
 
   // Poll for status updates on pending/processing videos (multi-provider)
   const pollStatuses = useCallback(async () => {
-    const pendingVideos = videos.filter(
+    const pendingVideos = videosRef.current.filter(
       (v) => v.status === 'pending' || v.status === 'processing'
     )
     if (pendingVideos.length === 0) return
 
-    for (const video of pendingVideos) {
-      try {
-        // Route polling by provider
+    // Poll all pending videos in parallel
+    const results = await Promise.allSettled(
+      pendingVideos.map(async (video) => {
         let url: string
         if (video.provider === 'google_veo' && video.veo_operation_name) {
           url = `/api/veo/status/${encodeURIComponent(video.veo_operation_name)}`
         } else if (video.provider === 'nanobanana') {
-          // Legacy NB videos — skip polling (API no longer exists)
-          continue
+          return null
         } else {
           url = `/api/heygen/status/${video.id}`
         }
 
         const res = await fetch(url)
-        if (res.ok) {
-          const { video: updatedVideo } = await res.json()
-          if (updatedVideo) {
-            setVideos((prev) =>
-              prev.map((v) => (v.id === video.id ? { ...v, ...updatedVideo } : v))
-            )
-          }
-        }
-      } catch {
-        // Silently ignore polling errors
-      }
-    }
-  }, [videos])
+        if (!res.ok) return null
+        const { video: updatedVideo } = await res.json()
+        return updatedVideo ? { id: video.id, ...updatedVideo } : null
+      })
+    )
 
-  // Adaptive polling with exponential backoff
+    const updates = results
+      .filter((r): r is PromiseFulfilledResult<{ id: string }> => r.status === 'fulfilled' && r.value != null)
+      .map((r) => r.value)
+
+    if (updates.length > 0) {
+      setVideos((prev) =>
+        prev.map((v) => {
+          const update = updates.find((u) => u.id === v.id)
+          return update ? { ...v, ...update } : v
+        })
+      )
+    }
+  }, [])
+
+  // Adaptive polling — uses ref so timer doesn't restart on every state change
   useEffect(() => {
-    const pending = videos.filter(
-      (v) => v.status === 'pending' || v.status === 'processing'
-    )
-    if (pending.length === 0) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      return
-    }
-
-    const oldest = pending.reduce((a, b) =>
-      new Date(a.created_at) < new Date(b.created_at) ? a : b
-    )
-    const interval = getPollingInterval(oldest.created_at)
-
     function schedulePoll() {
+      const pending = videosRef.current.filter(
+        (v) => v.status === 'pending' || v.status === 'processing'
+      )
+      if (pending.length === 0) return
+
+      const oldest = pending.reduce((a, b) =>
+        new Date(a.created_at) < new Date(b.created_at) ? a : b
+      )
+      const interval = getPollingInterval(oldest.created_at)
+
       timerRef.current = setTimeout(async () => {
         await pollStatuses()
         schedulePoll()
@@ -98,7 +102,7 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [videos, pollStatuses])
+  }, [pollStatuses])
 
   if (videos.length === 0) {
     return (
@@ -170,7 +174,7 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
                 </div>
               </div>
               {isProcessing(video.status) ? (
-                <VideoProgressBar createdAt={video.created_at} />
+                <VideoProgressBar createdAt={video.created_at} veoModel={video.veo_model} />
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {new Date(video.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

@@ -37,6 +37,8 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
   const [modeFilter, setModeFilter] = useState('all')
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const videosRef = useRef(videos)
+  videosRef.current = videos
 
   useEffect(() => {
     async function loadVideos() {
@@ -67,50 +69,51 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
     return () => window.removeEventListener('video-created', handleNewVideo)
   }, [])
 
-  // Poll for status updates
+  // Poll for status updates — parallel, non-blocking
   const pollStatuses = useCallback(async () => {
-    const pending = videos.filter(
-      (v) => v.status === 'pending' || v.status === 'processing'
+    const pending = videosRef.current.filter(
+      (v) => (v.status === 'pending' || v.status === 'processing') && v.veo_operation_name
     )
     if (pending.length === 0) return
 
-    for (const video of pending) {
-      if (!video.veo_operation_name) continue
-      try {
+    const results = await Promise.allSettled(
+      pending.map(async (video) => {
         const res = await fetch(
-          `/api/veo/status/${encodeURIComponent(video.veo_operation_name)}`
+          `/api/veo/status/${encodeURIComponent(video.veo_operation_name!)}`
         )
-        if (res.ok) {
-          const { video: updated } = await res.json()
-          if (updated) {
-            setVideos((prev) =>
-              prev.map((v) => (v.id === video.id ? { ...v, ...updated } : v))
-            )
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, [videos])
+        if (!res.ok) return null
+        const { video: updated } = await res.json()
+        return updated ? { id: video.id, ...updated } : null
+      })
+    )
 
-  // Adaptive polling with exponential backoff
+    const updates = results
+      .filter((r): r is PromiseFulfilledResult<{ id: string }> => r.status === 'fulfilled' && r.value != null)
+      .map((r) => r.value)
+
+    if (updates.length > 0) {
+      setVideos((prev) =>
+        prev.map((v) => {
+          const update = updates.find((u) => u.id === v.id)
+          return update ? { ...v, ...update } : v
+        })
+      )
+    }
+  }, [])
+
+  // Adaptive polling — uses ref so timer doesn't restart on every state change
   useEffect(() => {
-    const pending = videos.filter(
-      (v) => v.status === 'pending' || v.status === 'processing'
-    )
-    if (pending.length === 0) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      return
-    }
-
-    // Find oldest pending video to determine polling interval
-    const oldest = pending.reduce((a, b) =>
-      new Date(a.created_at) < new Date(b.created_at) ? a : b
-    )
-    const interval = getPollingInterval(oldest.created_at)
-
     function schedulePoll() {
+      const pending = videosRef.current.filter(
+        (v) => v.status === 'pending' || v.status === 'processing'
+      )
+      if (pending.length === 0) return
+
+      const oldest = pending.reduce((a, b) =>
+        new Date(a.created_at) < new Date(b.created_at) ? a : b
+      )
+      const interval = getPollingInterval(oldest.created_at)
+
       timerRef.current = setTimeout(async () => {
         await pollStatuses()
         schedulePoll()
@@ -121,7 +124,7 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [videos, pollStatuses])
+  }, [pollStatuses])
 
   async function handleCancel(videoId: string) {
     setCancellingId(videoId)
@@ -257,7 +260,7 @@ export function StudioGallery({ onExtendVideo }: StudioGalleryProps) {
                   </div>
                 </div>
                 {isProcessing(video.status) ? (
-                  <VideoProgressBar createdAt={video.created_at} />
+                  <VideoProgressBar createdAt={video.created_at} veoModel={video.veo_model} />
                 ) : (
                   <div className="mt-1 flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">

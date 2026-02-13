@@ -29,7 +29,9 @@ import {
   Check,
   X,
   Bot,
+  Zap,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { VEO_ENHANCEMENT_LABELS } from '@/lib/ai-prompts'
 import type { VeoModel, VeoAspectRatio, VeoDuration } from '@/lib/veo-types'
 
@@ -435,15 +437,40 @@ Or use AI Generate above to create a detailed cinematic prompt from just a brief
 
           <div className="space-y-1.5">
             <Label className="text-xs">Quality</Label>
-            <Select value={model} onValueChange={(v) => setModel(v as VeoModel)}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="veo-3.1-generate-preview">Standard (higher quality)</SelectItem>
-                <SelectItem value="veo-3.1-fast-generate-preview">Fast (recommended)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setModel('veo-3.1-fast-generate-preview')}
+                className={cn(
+                  'flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-all',
+                  model === 'veo-3.1-fast-generate-preview'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'hover:border-muted-foreground/40'
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <Zap className="h-3 w-3 text-amber-500" />
+                  Draft
+                </span>
+                <span className="text-[10px] text-muted-foreground">~30 seconds</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModel('veo-3.1-generate-preview')}
+                className={cn(
+                  'flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-all',
+                  model === 'veo-3.1-generate-preview'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'hover:border-muted-foreground/40'
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <Sparkles className="h-3 w-3 text-violet-500" />
+                  Standard
+                </span>
+                <span className="text-[10px] text-muted-foreground">~5 minutes, higher quality</span>
+              </button>
+            </div>
           </div>
         </div>
 

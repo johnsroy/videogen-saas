@@ -124,16 +124,27 @@ export async function GET(
 
     const updates: Record<string, unknown> = {}
     if (status.done && status.videoUri) {
-      // Download from Google and persist to Supabase Storage (Google URLs expire in ~1 hour)
-      const persistedUrl = await persistVeoVideo(status.videoUri, user.id, video.id)
-
       updates.status = 'completed'
-      updates.video_url = persistedUrl ?? status.videoUri // fallback to Google URL if persist fails
+      updates.video_url = status.videoUri
       updates.updated_at = new Date().toISOString()
 
-      if (!persistedUrl) {
-        console.warn(`Video ${video.id}: failed to persist to storage, using ephemeral Google URL`)
-      }
+      // Persist to Supabase Storage in the background — don't block the response.
+      // Google URLs expire in ~1 hour, so this runs fire-and-forget.
+      const videoId = video.id
+      const userId = user.id
+      const googleUri = status.videoUri
+      persistVeoVideo(googleUri, userId, videoId).then((persistedUrl) => {
+        if (persistedUrl) {
+          getSupabaseAdmin()
+            .from('videos')
+            .update({ video_url: persistedUrl })
+            .eq('id', videoId)
+            .eq('user_id', userId)
+            .then(() => console.log(`Video ${videoId}: persisted to storage`))
+        } else {
+          console.warn(`Video ${videoId}: failed to persist, Google URL will expire`)
+        }
+      })
     } else if (status.done && status.error) {
       updates.status = 'failed'
       updates.error_message = status.error
