@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -15,115 +15,224 @@ import {
 } from '@/components/ui/select'
 import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
-import { RefreshCw, Loader2, Film } from 'lucide-react'
-import { canGenerateVideo, getVideoLimit } from '@/lib/plan-utils'
+import {
+  Sparkles,
+  Loader2,
+  RefreshCw,
+  PenLine,
+  Palette,
+  Clock,
+  Coins,
+  Check,
+} from 'lucide-react'
+import { canGenerateVideo, getVideoLimit, canUseVeo } from '@/lib/plan-utils'
+import { TONE_OPTIONS } from '@/lib/ai-prompts'
 import type { PlanId } from '@/lib/plans'
-import type { VideoRecord, HeyGenAvatar, HeyGenVoice } from '@/lib/heygen-types'
+import type { VideoRecord } from '@/lib/heygen-types'
+
+type RemixMode = 'script-rewrite' | 'style-variation' | 'duration-remix'
+
+const REMIX_MODES: { id: RemixMode; label: string; icon: React.ReactNode; desc: string }[] = [
+  { id: 'script-rewrite', label: 'AI Script Rewrite', icon: <PenLine className="h-3.5 w-3.5" />, desc: 'Rewrite in a different tone' },
+  { id: 'style-variation', label: 'Style Variation', icon: <Palette className="h-3.5 w-3.5" />, desc: 'Change visual style' },
+  { id: 'duration-remix', label: 'Duration Remix', icon: <Clock className="h-3.5 w-3.5" />, desc: 'Shorter or longer version' },
+]
+
+const VEO_DURATIONS = [5, 8, 10, 15, 30]
+const HEYGEN_DURATIONS = [15, 30, 60, 90, 120]
+
+const VEO_ASPECT_RATIOS = [
+  { value: '16:9', label: 'Landscape (16:9)' },
+  { value: '9:16', label: 'Portrait (9:16)' },
+  { value: '1:1', label: 'Square (1:1)' },
+]
+
+const HEYGEN_DIMENSIONS = [
+  { value: '1280x720', label: 'Landscape (16:9)' },
+  { value: '720x1280', label: 'Portrait (9:16)' },
+  { value: '720x720', label: 'Square (1:1)' },
+]
 
 interface VideoRemixStudioProps {
-  completedVideos: VideoRecord[]
+  video: VideoRecord
   planId: PlanId
   videosThisMonth: number
+  creditsRemaining: number
 }
 
 export function VideoRemixStudio({
-  completedVideos,
+  video,
   planId,
   videosThisMonth,
+  creditsRemaining,
 }: VideoRemixStudioProps) {
-  const [selectedVideoId, setSelectedVideoId] = useState<string>('')
-  const [title, setTitle] = useState('')
-  const [script, setScript] = useState('')
-  const [avatarId, setAvatarId] = useState<string | null>(null)
-  const [voiceId, setVoiceId] = useState<string | null>(null)
-  const [dimension, setDimension] = useState('1280x720')
+  const [mode, setMode] = useState<RemixMode>('script-rewrite')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isRewriting, setIsRewriting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Lazy-load avatar/voice names for displaying original video info
-  const [avatars, setAvatars] = useState<HeyGenAvatar[]>([])
-  const [voices, setVoices] = useState<HeyGenVoice[]>([])
+  // Script Rewrite state
+  const [tone, setTone] = useState('professional')
+  const [customInstructions, setCustomInstructions] = useState('')
+  const [rewrittenScript, setRewrittenScript] = useState('')
+  const [showRewritten, setShowRewritten] = useState(false)
 
-  const selectedVideo = completedVideos.find((v) => v.id === selectedVideoId)
+  // Style Variation state
+  const [avatarId, setAvatarId] = useState<string | null>(video.avatar_id || null)
+  const [voiceId, setVoiceId] = useState<string | null>(video.voice_id || null)
+  const [dimension, setDimension] = useState(video.dimension || '1280x720')
+  const [aspectRatio, setAspectRatio] = useState('16:9')
+
+  // Duration Remix state
+  const [targetDuration, setTargetDuration] = useState(15)
+  const [adjustedScript, setAdjustedScript] = useState('')
+
+  const isVeo = video.provider === 'google_veo'
+  const isHeygen = !isVeo
+  const originalScript = video.script || video.prompt || ''
   const videoLimit = getVideoLimit(planId)
   const limitReached = !canGenerateVideo(planId, videosThisMonth)
+  const hasVeoAccess = canUseVeo(planId)
 
-  // Fetch avatar/voice names when user first selects a video
+  // Reset state when video changes
   useEffect(() => {
-    if (!selectedVideoId || avatars.length > 0) return
-    Promise.all([
-      fetch('/api/heygen/avatars').then((r) => r.json()).catch(() => ({ avatars: [] })),
-      fetch('/api/heygen/voices').then((r) => r.json()).catch(() => ({ voices: [] })),
-    ]).then(([avatarData, voiceData]) => {
-      setAvatars(avatarData.avatars ?? [])
-      setVoices(voiceData.voices ?? [])
-    })
-  }, [selectedVideoId, avatars.length])
-
-  function handleVideoSelect(videoId: string) {
-    setSelectedVideoId(videoId)
-    setSuccess(false)
-    setError(null)
-    const video = completedVideos.find((v) => v.id === videoId)
-    if (video) {
-      setTitle(video.title + ' (Remix)')
-      setScript(video.script || video.prompt || '')
-      setAvatarId(video.avatar_id)
-      setVoiceId(video.voice_id)
-      setDimension(video.dimension || '1280x720')
-    }
-  }
-
-  async function handleRemix() {
-    if (!title.trim() || !script.trim()) return
-    setIsGenerating(true)
     setError(null)
     setSuccess(false)
+    setRewrittenScript('')
+    setShowRewritten(false)
+    setAdjustedScript('')
+    setAvatarId(video.avatar_id || null)
+    setVoiceId(video.voice_id || null)
+    setDimension(video.dimension || '1280x720')
+  }, [video.id, video.avatar_id, video.voice_id, video.dimension])
+
+  async function handleScriptRewrite() {
+    if (!originalScript) return
+    setIsRewriting(true)
+    setError(null)
+    setShowRewritten(false)
+
     try {
-      const res = await fetch('/api/heygen/generate', {
+      const res = await fetch('/api/ai/enhance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mode: 'avatar',
-          title,
-          avatar_id: avatarId,
-          voice_id: voiceId,
-          script,
-          dimension,
+          script: originalScript,
+          enhancement: tone,
+          custom_instructions: customInstructions.trim() || undefined,
         }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Failed to generate remix')
-        return
+      if (!res.ok) throw new Error(data.error || 'Failed to rewrite script')
+
+      setRewrittenScript(data.enhanced_script || data.script)
+      setShowRewritten(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rewrite script')
+    } finally {
+      setIsRewriting(false)
+    }
+  }
+
+  async function handleDurationAdjust() {
+    if (!originalScript) return
+    setIsRewriting(true)
+    setError(null)
+
+    try {
+      const wordCount = Math.round((targetDuration / 60) * 150)
+      const res = await fetch('/api/ai/enhance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script: originalScript,
+          enhancement: 'custom',
+          custom_instructions: `Rewrite this script to be approximately ${wordCount} words (for a ${targetDuration}-second video). Keep the same message and tone but adjust the length. If making shorter, keep only the most impactful parts. If making longer, add more detail and examples.`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to adjust script')
+
+      setAdjustedScript(data.enhanced_script || data.script)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to adjust script')
+    } finally {
+      setIsRewriting(false)
+    }
+  }
+
+  async function handleGenerate() {
+    setIsGenerating(true)
+    setError(null)
+    setSuccess(false)
+
+    try {
+      let res: Response
+
+      if (isVeo) {
+        // Veo remix — use the rewritten/adjusted script as prompt
+        const prompt =
+          mode === 'script-rewrite' ? rewrittenScript :
+          mode === 'duration-remix' ? (adjustedScript || originalScript) :
+          originalScript
+
+        res = await fetch('/api/veo/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            duration: mode === 'duration-remix' ? targetDuration : (video.duration || 8),
+            aspectRatio: mode === 'style-variation' ? aspectRatio : '16:9',
+            model: video.veo_model || 'veo-3.1-generate-preview',
+          }),
+        })
+      } else {
+        // HeyGen remix
+        const script =
+          mode === 'script-rewrite' ? rewrittenScript :
+          mode === 'duration-remix' ? (adjustedScript || originalScript) :
+          originalScript
+
+        res = await fetch('/api/heygen/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'avatar',
+            title: video.title + ' (Remix)',
+            avatar_id: mode === 'style-variation' ? avatarId : video.avatar_id,
+            voice_id: mode === 'style-variation' ? voiceId : video.voice_id,
+            script,
+            dimension: mode === 'style-variation' ? dimension : (video.dimension || '1280x720'),
+          }),
+        })
       }
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate remix')
+
       window.dispatchEvent(new CustomEvent('video-created', { detail: data.video }))
       setSuccess(true)
-    } catch {
-      setError('Failed to generate remix')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Remix failed')
     } finally {
       setIsGenerating(false)
     }
   }
 
-  if (completedVideos.length === 0) {
+  if (!originalScript && mode !== 'style-variation') {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Video Remix Studio
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Smart Remix
           </CardTitle>
-          <CardDescription>Remix an existing video with different settings</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <Film className="h-10 w-10 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">
-              No completed videos yet. Create a video first to remix it.
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            This video has no script or prompt to remix. Try the Style Variation mode instead.
+          </p>
         </CardContent>
       </Card>
     )
@@ -131,142 +240,266 @@ export function VideoRemixStudio({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <RefreshCw className="h-5 w-5" />
-          Video Remix Studio
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          Smart Remix
+          <Badge variant="secondary" className="text-[10px]">
+            {isVeo ? 'Veo' : 'HeyGen'}
+          </Badge>
         </CardTitle>
-        <CardDescription>Select a video and modify its settings to create a new version</CardDescription>
+        <CardDescription className="text-xs">
+          Create variations of this video with AI-powered remix tools
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Select Original Video</Label>
-          <Select value={selectedVideoId} onValueChange={handleVideoSelect}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a video to remix..." />
-            </SelectTrigger>
-            <SelectContent>
-              {completedVideos.map((video) => (
-                <SelectItem key={video.id} value={video.id}>
-                  {video.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Mode Selector */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {REMIX_MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => { setMode(m.id); setError(null); setSuccess(false) }}
+              className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all ${
+                mode === m.id
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                  : 'border-border hover:border-primary/30'
+              }`}
+            >
+              {m.icon}
+              <span className="text-[10px] font-medium">{m.label}</span>
+            </button>
+          ))}
         </div>
 
-        {selectedVideoId && selectedVideo && (
-          <>
-            {/* Side by side: original + settings */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {/* Original */}
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Original</Label>
-                {selectedVideo.video_url ? (
-                  <div className="overflow-hidden rounded-lg border">
-                    <video
-                      src={selectedVideo.video_url}
-                      controls
-                      className="w-full"
-                      style={{ maxHeight: 200 }}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-32 items-center justify-center rounded-lg border bg-muted">
-                    <Film className="h-8 w-8 text-muted-foreground/30" />
-                  </div>
-                )}
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>Avatar: {avatars.find((a) => a.avatar_id === selectedVideo.avatar_id)?.avatar_name || selectedVideo.avatar_id || 'N/A'}</p>
-                  <p>Voice: {voices.find((v) => v.voice_id === selectedVideo.voice_id)?.name || selectedVideo.voice_id || 'N/A'}</p>
-                  <p>Dimension: {selectedVideo.dimension || 'N/A'}</p>
-                </div>
-              </div>
-
-              {/* Remix settings */}
-              <div className="space-y-3">
-                <Label className="text-muted-foreground">Remix Settings</Label>
-                <div className="space-y-2">
-                  <Label htmlFor="remix-title" className="text-xs">Title</Label>
-                  <Input
-                    id="remix-title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Remix title"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Aspect Ratio</Label>
-                  <Select value={dimension} onValueChange={setDimension}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1280x720">Landscape (16:9)</SelectItem>
-                      <SelectItem value="720x1280">Portrait (9:16)</SelectItem>
-                      <SelectItem value="720x720">Square (1:1)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+        {/* Script Rewrite Mode */}
+        {mode === 'script-rewrite' && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tone</Label>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(TONE_OPTIONS).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTone(key)}
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors ${
+                      tone === key
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
-
-            {/* Avatar and voice pickers — self-loading */}
-            <AvatarPicker selected={avatarId} onSelect={setAvatarId} />
-            <VoicePicker selected={voiceId} onSelect={setVoiceId} />
-
-            {/* Script */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="remix-script">Script</Label>
-                <span className="text-xs text-muted-foreground">{script.length}/5000</span>
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Custom Instructions <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Textarea
-                id="remix-script"
-                value={script}
-                onChange={(e) => setScript(e.target.value)}
-                maxLength={5000}
-                rows={5}
-                placeholder="Edit the script..."
+                value={customInstructions}
+                onChange={(e) => setCustomInstructions(e.target.value)}
+                rows={2}
+                placeholder='e.g. "Make it shorter", "Add humor", "Focus on benefits"'
+                className="text-xs resize-none"
               />
             </div>
-
-            {/* Generate button */}
             <Button
-              onClick={handleRemix}
-              disabled={isGenerating || limitReached || !title.trim() || !script.trim() || !avatarId || !voiceId}
-              className="w-full"
+              size="sm"
+              onClick={handleScriptRewrite}
+              disabled={isRewriting || !originalScript}
             >
-              {isGenerating ? (
+              {isRewriting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Remix...
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Rewriting...
                 </>
-              ) : limitReached ? (
-                'Upgrade Plan'
               ) : (
                 <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Remix Video
+                  <PenLine className="mr-1.5 h-3.5 w-3.5" />
+                  Rewrite Script
                 </>
               )}
             </Button>
 
-            {success && (
-              <p className="text-sm text-green-600 dark:text-green-400">
-                Remix started! Check the Create tab to see your video processing.
-              </p>
+            {showRewritten && rewrittenScript && (
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
+                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Rewritten Script</Label>
+                <p className="text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {rewrittenScript}
+                </p>
+                <Button
+                  size="sm"
+                  onClick={handleGenerate}
+                  disabled={isGenerating || limitReached}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Generate with This Script
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
-
-            {limitReached && (
-              <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                Video limit reached ({videoLimit}/month). Upgrade your plan for more videos.
-              </p>
-            )}
-          </>
+          </div>
         )}
+
+        {/* Style Variation Mode */}
+        {mode === 'style-variation' && (
+          <div className="space-y-3">
+            {isVeo ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Aspect Ratio</Label>
+                <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEO_ASPECT_RATIOS.map((ar) => (
+                      <SelectItem key={ar.value} value={ar.value}>{ar.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Aspect Ratio</Label>
+                  <Select value={dimension} onValueChange={setDimension}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HEYGEN_DIMENSIONS.map((d) => (
+                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <AvatarPicker selected={avatarId} onSelect={setAvatarId} />
+                <VoicePicker selected={voiceId} onSelect={setVoiceId} />
+              </>
+            )}
+
+            <Button
+              size="sm"
+              onClick={handleGenerate}
+              disabled={isGenerating || limitReached || (isHeygen && (!avatarId || !voiceId))}
+              className="w-full"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Palette className="mr-1.5 h-3.5 w-3.5" />
+                  Generate Style Variation
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Duration Remix Mode */}
+        {mode === 'duration-remix' && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Target Duration</Label>
+              <div className="flex flex-wrap gap-1">
+                {(isVeo ? VEO_DURATIONS : HEYGEN_DURATIONS).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setTargetDuration(d)}
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors ${
+                      targetDuration === d
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    {d}s
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDurationAdjust}
+              disabled={isRewriting || !originalScript}
+            >
+              {isRewriting ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Adjusting...
+                </>
+              ) : (
+                <>
+                  <Clock className="mr-1.5 h-3.5 w-3.5" />
+                  Adjust Script to {targetDuration}s
+                </>
+              )}
+            </Button>
+
+            {adjustedScript && (
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
+                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Adjusted Script</Label>
+                <p className="text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {adjustedScript}
+                </p>
+              </div>
+            )}
+
+            <Button
+              size="sm"
+              onClick={handleGenerate}
+              disabled={isGenerating || limitReached || (!adjustedScript && mode === 'duration-remix')}
+              className="w-full"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                  Generate {targetDuration}s Version
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Status Messages */}
+        {success && (
+          <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+            <Check className="h-3.5 w-3.5" />
+            Remix started! Check the gallery for your new video.
+          </div>
+        )}
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
+
+        {limitReached && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400">
+            Video limit reached ({videoLimit}/month). Upgrade for more.
+          </p>
+        )}
+
+        {/* Credits */}
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Coins className="h-3 w-3" />
+          {isVeo ? `Uses AI Video credits (${creditsRemaining} remaining)` : `Free under plan limits`}
+        </div>
       </CardContent>
     </Card>
   )

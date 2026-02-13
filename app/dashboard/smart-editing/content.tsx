@@ -6,7 +6,6 @@ import { FileText, Film } from 'lucide-react'
 import { AiScriptStudio } from '@/components/dashboard/ai-script-studio'
 import { CaptionGenerator } from '@/components/dashboard/caption-generator'
 import { ScriptTemplates } from '@/components/dashboard/script-templates'
-import { VideoRemixStudio } from '@/components/dashboard/video-remix-studio'
 import { VideoEditorHub } from '@/components/dashboard/video-editor-hub'
 import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
@@ -99,15 +98,8 @@ export function SmartEditingContent({
             />
           </div>
 
-          {/* Row 2: Caption Generator + Video Remix Studio */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <CaptionGenerator completedVideos={completedVideos} />
-            <VideoRemixStudio
-              completedVideos={completedVideos}
-              planId={planId}
-              videosThisMonth={videosThisMonth}
-            />
-          </div>
+          {/* Row 2: Caption Generator */}
+          <CaptionGenerator completedVideos={completedVideos} />
         </div>
       </TabsContent>
 

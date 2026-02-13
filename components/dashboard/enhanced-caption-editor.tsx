@@ -49,9 +49,10 @@ const BACKGROUNDS = [
 interface EnhancedCaptionEditorProps {
   video: VideoRecord
   videoElement: HTMLVideoElement | null
+  onCaptionSaved?: (captionContent: string, styles: Record<string, string>) => void
 }
 
-export function EnhancedCaptionEditor({ video, videoElement }: EnhancedCaptionEditorProps) {
+export function EnhancedCaptionEditor({ video, videoElement, onCaptionSaved }: EnhancedCaptionEditorProps) {
   const [cues, setCues] = useState<CaptionCue[]>([])
   const [styles, setStyles] = useState<CaptionStyles>(DEFAULT_CAPTION_STYLES)
   const [isLoading, setIsLoading] = useState(false)
@@ -187,6 +188,7 @@ export function EnhancedCaptionEditor({ video, videoElement }: EnhancedCaptionEd
       })
       if (!res.ok) throw new Error('Failed to save')
       setSaved(true)
+      onCaptionSaved?.(content, styles as unknown as Record<string, string>)
       setTimeout(() => setSaved(false), 3000)
     } catch {
       setError('Failed to save captions')

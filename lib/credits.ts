@@ -255,6 +255,12 @@ export function calculateImageCreditCost(resolution: string): number {
   return costs[resolution] ?? 1
 }
 
+/** Credit cost for exporting an edited video */
+export const EXPORT_CREDIT_COST = 2
+
+/** Credit cost for AI music generation */
+export const AI_MUSIC_CREDIT_COST = 1
+
 /** Calculate credit cost for a Veo 3.1 video.
  * Standard model: 2 credits/sec, Fast/draft model: 1 credit/sec */
 export function calculateVeoVideoCreditCost(

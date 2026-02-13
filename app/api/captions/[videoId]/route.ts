@@ -68,8 +68,9 @@ export async function PUT(
         .update({ content, styles: styles || {} })
         .eq('id', existing.id)
         .eq('user_id', user.id)
+      return NextResponse.json({ success: true, captionId: existing.id })
     } else {
-      await getSupabaseAdmin()
+      const { data: inserted } = await getSupabaseAdmin()
         .from('captions')
         .insert({
           video_id: videoId,
@@ -77,9 +78,10 @@ export async function PUT(
           content,
           styles: styles || {},
         })
+        .select('id')
+        .single()
+      return NextResponse.json({ success: true, captionId: inserted?.id })
     }
-
-    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Save caption error:', error)
     return NextResponse.json({ error: 'Failed to save captions' }, { status: 500 })

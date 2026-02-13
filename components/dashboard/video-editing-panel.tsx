@@ -1,14 +1,51 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Mic, Captions, Music, Sparkles } from 'lucide-react'
 import { AiVoiceoverStudio } from './ai-voiceover-studio'
 import { EnhancedCaptionEditor } from './enhanced-caption-editor'
 import { BackgroundMusicMixer } from './background-music-mixer'
 import { VideoRemixStudio } from './video-remix-studio'
+import { VolumeMixer } from './volume-mixer'
+import { ExportBar } from './export-bar'
+import { EXPORT_CREDIT_COST } from '@/lib/credits'
 import type { VideoRecord } from '@/lib/heygen-types'
 import type { PlanId } from '@/lib/plans'
+
+interface EditProjectState {
+  id: string | null
+  voiceoverId: string | null
+  voiceoverUrl: string | null
+  captionContent: string | null
+  captionStyles: Record<string, string>
+  musicSelection: { type: 'preset' | 'ai'; id: string } | null
+  musicUrl: string | null
+  voiceoverVolume: number
+  musicVolume: number
+  originalAudioVolume: number
+  isDirty: boolean
+  status: 'draft' | 'exporting' | 'completed' | 'failed'
+  exportError: string | null
+  exportedVideoUrl: string | null
+}
+
+const DEFAULT_PROJECT: EditProjectState = {
+  id: null,
+  voiceoverId: null,
+  voiceoverUrl: null,
+  captionContent: null,
+  captionStyles: {},
+  musicSelection: null,
+  musicUrl: null,
+  voiceoverVolume: 100,
+  musicVolume: 30,
+  originalAudioVolume: 100,
+  isDirty: false,
+  status: 'draft',
+  exportError: null,
+  exportedVideoUrl: null,
+}
 
 interface VideoEditingPanelProps {
   video: VideoRecord
@@ -25,15 +62,161 @@ export function VideoEditingPanel({
 }: VideoEditingPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null)
+  const [project, setProject] = useState<EditProjectState>(DEFAULT_PROJECT)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [credits, setCredits] = useState(creditsRemaining)
 
   function handleVideoRef(el: HTMLVideoElement | null) {
     videoRef.current = el
     setVideoElement(el)
   }
 
+  // Load existing project when video changes
+  useEffect(() => {
+    setProject(DEFAULT_PROJECT)
+    fetch(`/api/editor/load?source_video_id=${video.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.project) {
+          const p = data.project
+          setProject({
+            id: p.id,
+            voiceoverId: p.voiceover_id,
+            voiceoverUrl: p.voiceover?.audio_url || null,
+            captionContent: p.caption_content,
+            captionStyles: p.caption_styles || {},
+            musicSelection: p.music_ai_id
+              ? { type: 'ai', id: p.music_ai_id }
+              : p.music_preset_id
+                ? { type: 'preset', id: p.music_preset_id }
+                : null,
+            musicUrl: p.ai_music?.audio_url || null,
+            voiceoverVolume: p.voiceover_volume ?? 100,
+            musicVolume: p.music_volume ?? 30,
+            originalAudioVolume: p.original_audio_volume ?? 100,
+            isDirty: false,
+            status: p.status || 'draft',
+            exportError: p.error_message || null,
+            exportedVideoUrl: null,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [video.id])
+
+  const handleVoiceoverGenerated = useCallback((voiceoverId: string, audioUrl: string) => {
+    setProject((p) => ({
+      ...p,
+      voiceoverId,
+      voiceoverUrl: audioUrl,
+      isDirty: true,
+    }))
+  }, [])
+
+  const handleCaptionSaved = useCallback((captionContent: string, styles: Record<string, string>) => {
+    setProject((p) => ({
+      ...p,
+      captionContent,
+      captionStyles: styles,
+      isDirty: true,
+    }))
+  }, [])
+
+  const handleTrackSelected = useCallback((selection: { type: 'preset' | 'ai'; id: string; url?: string } | null) => {
+    setProject((p) => ({
+      ...p,
+      musicSelection: selection ? { type: selection.type, id: selection.id } : null,
+      musicUrl: selection?.url || null,
+      isDirty: true,
+    }))
+  }, [])
+
+  async function handleSave() {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/editor/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_video_id: video.id,
+          title: video.title,
+          voiceover_id: project.voiceoverId,
+          voiceover_volume: project.voiceoverVolume,
+          caption_content: project.captionContent,
+          caption_styles: project.captionStyles,
+          music_preset_id: project.musicSelection?.type === 'preset' ? project.musicSelection.id : null,
+          music_ai_id: project.musicSelection?.type === 'ai' ? project.musicSelection.id : null,
+          music_volume: project.musicVolume,
+          original_audio_volume: project.originalAudioVolume,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.project) {
+        setProject((p) => ({ ...p, id: data.project.id, isDirty: false }))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleExport() {
+    // Save first if dirty
+    if (project.isDirty || !project.id) {
+      await handleSave()
+    }
+
+    setIsExporting(true)
+    setProject((p) => ({ ...p, status: 'exporting', exportError: null }))
+
+    try {
+      // Need to get the latest project ID
+      const loadRes = await fetch(`/api/editor/load?source_video_id=${video.id}`)
+      const loadData = await loadRes.json()
+      const projectId = loadData.project?.id || project.id
+
+      if (!projectId) {
+        throw new Error('Please save the project first')
+      }
+
+      const res = await fetch('/api/editor/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Export failed')
+      }
+
+      setProject((p) => ({
+        ...p,
+        status: 'completed',
+        exportedVideoUrl: data.video?.video_url || null,
+      }))
+      setCredits((c) => Math.max(0, c - EXPORT_CREDIT_COST))
+
+      // Dispatch event so gallery picks up the new video
+      if (data.video) {
+        window.dispatchEvent(new CustomEvent('video-created', { detail: data.video }))
+      }
+    } catch (err) {
+      setProject((p) => ({
+        ...p,
+        status: 'failed',
+        exportError: err instanceof Error ? err.message : 'Export failed',
+      }))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-      {/* Left: Video Preview */}
+      {/* Left: Video Preview + Volume Mixer */}
       <div className="lg:col-span-2 space-y-2">
         <div className="rounded-lg overflow-hidden border bg-black">
           {video.video_url ? (
@@ -56,6 +239,32 @@ export function VideoEditingPanel({
             {video.prompt || video.script || 'No description'}
           </p>
         </div>
+
+        {/* Volume Mixer */}
+        <VolumeMixer
+          originalVolume={project.originalAudioVolume}
+          voiceoverVolume={project.voiceoverVolume}
+          musicVolume={project.musicVolume}
+          hasVoiceover={!!project.voiceoverId}
+          hasMusic={!!project.musicSelection}
+          onOriginalChange={(v) => setProject((p) => ({ ...p, originalAudioVolume: v, isDirty: true }))}
+          onVoiceoverChange={(v) => setProject((p) => ({ ...p, voiceoverVolume: v, isDirty: true }))}
+          onMusicChange={(v) => setProject((p) => ({ ...p, musicVolume: v, isDirty: true }))}
+        />
+
+        {/* Export Bar */}
+        <ExportBar
+          isDirty={project.isDirty}
+          isSaving={isSaving}
+          isExporting={isExporting}
+          exportStatus={project.status}
+          exportError={project.exportError}
+          exportedVideoUrl={project.exportedVideoUrl}
+          creditsRemaining={credits}
+          exportCost={EXPORT_CREDIT_COST}
+          onSave={handleSave}
+          onExport={handleExport}
+        />
       </div>
 
       {/* Right: Tool Tabs */}
@@ -84,7 +293,8 @@ export function VideoEditingPanel({
             <AiVoiceoverStudio
               video={video}
               videoElement={videoElement}
-              creditsRemaining={creditsRemaining}
+              creditsRemaining={credits}
+              onVoiceoverGenerated={handleVoiceoverGenerated}
             />
           </TabsContent>
 
@@ -92,20 +302,26 @@ export function VideoEditingPanel({
             <EnhancedCaptionEditor
               video={video}
               videoElement={videoElement}
+              onCaptionSaved={handleCaptionSaved}
             />
           </TabsContent>
 
           <TabsContent value="music" className="mt-3">
-            <div className="rounded-lg border p-4">
-              <BackgroundMusicMixer videoElement={videoElement} />
-            </div>
+            <BackgroundMusicMixer
+              videoElement={videoElement}
+              creditsRemaining={credits}
+              onTrackSelected={handleTrackSelected}
+              onVolumeChanged={(v) => setProject((p) => ({ ...p, musicVolume: v, isDirty: true }))}
+              onCreditsChanged={(c) => setCredits(c)}
+            />
           </TabsContent>
 
           <TabsContent value="remix" className="mt-3">
             <VideoRemixStudio
-              completedVideos={[video]}
+              video={video}
               planId={planId}
               videosThisMonth={videosThisMonth}
+              creditsRemaining={credits}
             />
           </TabsContent>
         </Tabs>

@@ -30,9 +30,10 @@ interface AiVoiceoverStudioProps {
   video: VideoRecord
   videoElement: HTMLVideoElement | null
   creditsRemaining: number
+  onVoiceoverGenerated?: (voiceoverId: string, audioUrl: string) => void
 }
 
-export function AiVoiceoverStudio({ video, videoElement, creditsRemaining }: AiVoiceoverStudioProps) {
+export function AiVoiceoverStudio({ video, videoElement, creditsRemaining, onVoiceoverGenerated }: AiVoiceoverStudioProps) {
   const [script, setScript] = useState(video.script || video.prompt || '')
   const [selectedVoice, setSelectedVoice] = useState('nova')
   const [instructions, setInstructions] = useState('')
@@ -113,6 +114,7 @@ export function AiVoiceoverStudio({ video, videoElement, creditsRemaining }: AiV
 
       setAudioUrl(data.voiceover.audio_url)
       setCredits((c) => Math.max(0, c - 1))
+      onVoiceoverGenerated?.(data.voiceover.id, data.voiceover.audio_url)
     } catch {
       setError('Failed to generate voiceover. Please try again.')
     } finally {

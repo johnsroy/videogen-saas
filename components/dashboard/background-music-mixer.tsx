@@ -3,62 +3,58 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { Music, Play, Pause } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Music, Play, Pause, Sparkles, Loader2, Coins } from 'lucide-react'
 
-type Category = 'all' | 'upbeat' | 'corporate' | 'calm' | 'cinematic' | 'lofi' | 'epic'
-
-interface Track {
+interface PresetTrack {
   id: string
   label: string
   file: string
-  category: Category
+  mood: string
 }
 
-const TRACKS: Track[] = [
-  // Upbeat
-  { id: 'upbeat', label: 'Upbeat', file: '/audio/upbeat.wav', category: 'upbeat' },
-  { id: 'energetic', label: 'Energetic', file: '/audio/energetic.wav', category: 'upbeat' },
-  { id: 'happy-pop', label: 'Happy Pop', file: '/audio/happy-pop.wav', category: 'upbeat' },
-  // Corporate
-  { id: 'corporate', label: 'Corporate', file: '/audio/corporate.wav', category: 'corporate' },
-  { id: 'business', label: 'Business', file: '/audio/business.wav', category: 'corporate' },
-  // Calm
-  { id: 'calm', label: 'Calm', file: '/audio/calm.wav', category: 'calm' },
-  { id: 'ambient', label: 'Ambient', file: '/audio/ambient.wav', category: 'calm' },
-  // Cinematic
-  { id: 'cinematic', label: 'Cinematic', file: '/audio/cinematic.wav', category: 'cinematic' },
-  { id: 'dramatic', label: 'Dramatic', file: '/audio/dramatic.wav', category: 'cinematic' },
-  // Lo-Fi
-  { id: 'lofi-chill', label: 'Lo-Fi Chill', file: '/audio/lofi-chill.wav', category: 'lofi' },
-  { id: 'lofi-beats', label: 'Lo-Fi Beats', file: '/audio/lofi-beats.wav', category: 'lofi' },
-  // Epic
-  { id: 'epic-intro', label: 'Epic Intro', file: '/audio/epic-intro.wav', category: 'epic' },
+const PRESET_TRACKS: PresetTrack[] = [
+  { id: 'upbeat', label: 'Upbeat', file: '/audio/upbeat.wav', mood: 'Energetic & positive' },
+  { id: 'corporate', label: 'Corporate', file: '/audio/corporate.wav', mood: 'Professional & clean' },
+  { id: 'calm', label: 'Calm', file: '/audio/calm.wav', mood: 'Relaxing & peaceful' },
+  { id: 'energetic', label: 'Energetic', file: '/audio/energetic.wav', mood: 'High energy & exciting' },
 ]
 
-const CATEGORIES: { id: Category; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'upbeat', label: 'Upbeat' },
-  { id: 'corporate', label: 'Corporate' },
-  { id: 'calm', label: 'Calm' },
-  { id: 'cinematic', label: 'Cinematic' },
-  { id: 'lofi', label: 'Lo-Fi' },
-  { id: 'epic', label: 'Epic' },
-]
+interface AiTrack {
+  id: string
+  prompt: string
+  url: string
+}
 
 interface BackgroundMusicMixerProps {
   videoElement: HTMLVideoElement | null
+  creditsRemaining: number
+  onTrackSelected?: (selection: { type: 'preset' | 'ai'; id: string; url?: string } | null) => void
+  onVolumeChanged?: (v: number) => void
+  onCreditsChanged?: (c: number) => void
 }
 
-export function BackgroundMusicMixer({ videoElement }: BackgroundMusicMixerProps) {
+export function BackgroundMusicMixer({
+  videoElement,
+  creditsRemaining,
+  onTrackSelected,
+  onVolumeChanged,
+  onCreditsChanged,
+}: BackgroundMusicMixerProps) {
   const [selectedTrack, setSelectedTrack] = useState<string>('')
+  const [selectedType, setSelectedType] = useState<'preset' | 'ai'>('preset')
   const [volume, setVolume] = useState(30)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [category, setCategory] = useState<Category>('all')
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const filteredTracks = category === 'all'
-    ? TRACKS
-    : TRACKS.filter((t) => t.category === category)
+  // AI Music state
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiDuration, setAiDuration] = useState(15)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiTracks, setAiTracks] = useState<AiTrack[]>([])
+  const [credits, setCredits] = useState(creditsRemaining)
 
   // Sync music playback with video play/pause
   useEffect(() => {
@@ -101,7 +97,7 @@ export function BackgroundMusicMixer({ videoElement }: BackgroundMusicMixerProps
     }
   }, [volume])
 
-  const handleTrackSelect = useCallback((trackId: string) => {
+  const selectTrack = useCallback((trackId: string, type: 'preset' | 'ai', url: string) => {
     // Stop current audio
     if (audioRef.current) {
       audioRef.current.pause()
@@ -109,28 +105,39 @@ export function BackgroundMusicMixer({ videoElement }: BackgroundMusicMixerProps
     }
 
     // Deselect if clicking same track
-    if (selectedTrack === trackId) {
+    if (selectedTrack === trackId && selectedType === type) {
       setSelectedTrack('')
       setIsPlaying(false)
+      onTrackSelected?.(null)
       return
     }
 
     setSelectedTrack(trackId)
+    setSelectedType(type)
 
-    const track = TRACKS.find((t) => t.id === trackId)
-    if (!track) return
-
-    const audio = new Audio(track.file)
+    const audio = new Audio(url)
     audio.loop = true
     audio.volume = volume / 100
     audioRef.current = audio
+
+    onTrackSelected?.({ type, id: trackId, url: type === 'ai' ? url : undefined })
 
     // If video is currently playing, start music immediately
     if (videoElement && !videoElement.paused) {
       audio.play().catch(() => {})
       setIsPlaying(true)
     }
-  }, [videoElement, volume, selectedTrack])
+  }, [videoElement, volume, selectedTrack, selectedType, onTrackSelected])
+
+  function handlePresetSelect(trackId: string) {
+    const track = PRESET_TRACKS.find((t) => t.id === trackId)
+    if (!track) return
+    selectTrack(trackId, 'preset', track.file)
+  }
+
+  function handleAiTrackSelect(track: AiTrack) {
+    selectTrack(track.id, 'ai', track.url)
+  }
 
   function toggleMusic() {
     if (!audioRef.current) return
@@ -140,6 +147,51 @@ export function BackgroundMusicMixer({ videoElement }: BackgroundMusicMixerProps
     } else {
       audioRef.current.play().catch(() => {})
       setIsPlaying(true)
+    }
+  }
+
+  function handleVolumeChange(v: number) {
+    setVolume(v)
+    onVolumeChanged?.(v)
+  }
+
+  async function handleGenerateMusic() {
+    if (!aiPrompt.trim() || credits < 1) return
+    setIsGenerating(true)
+    setAiError(null)
+
+    try {
+      const res = await fetch('/api/music/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiPrompt.trim(),
+          duration_seconds: aiDuration,
+        }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setAiError(data.error || 'Failed to generate music')
+        return
+      }
+
+      const newTrack: AiTrack = {
+        id: data.track.id,
+        prompt: aiPrompt.trim(),
+        url: data.track.audio_url,
+      }
+      setAiTracks((prev) => [newTrack, ...prev])
+      const newCredits = Math.max(0, credits - 1)
+      setCredits(newCredits)
+      onCreditsChanged?.(newCredits)
+
+      // Auto-select the new track
+      selectTrack(newTrack.id, 'ai', newTrack.url)
+    } catch {
+      setAiError('Failed to generate music. Please try again.')
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -153,50 +205,124 @@ export function BackgroundMusicMixer({ videoElement }: BackgroundMusicMixerProps
     }
   }, [])
 
+  const currentLabel =
+    selectedType === 'preset'
+      ? PRESET_TRACKS.find((t) => t.id === selectedTrack)?.label
+      : aiTracks.find((t) => t.id === selectedTrack)?.prompt?.slice(0, 20)
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Music className="h-4 w-4 text-muted-foreground" />
-        <span className="text-xs font-medium">Background Music</span>
+    <div className="space-y-4">
+      {/* Preset Tracks */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Music className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium">Preset Tracks</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {PRESET_TRACKS.map((track) => (
+            <button
+              key={track.id}
+              onClick={() => handlePresetSelect(track.id)}
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-all text-left ${
+                selectedTrack === track.id && selectedType === 'preset'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                  : 'border-border hover:border-primary/30'
+              }`}
+            >
+              {selectedTrack === track.id && selectedType === 'preset' && isPlaying ? (
+                <Pause className="h-3 w-3 flex-shrink-0 text-primary" />
+              ) : (
+                <Play className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+              )}
+              <div className="min-w-0">
+                <div className="font-medium truncate">{track.label}</div>
+                <div className="text-[10px] text-muted-foreground truncate">{track.mood}</div>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Category Filter Pills */}
-      <div className="flex flex-wrap gap-1">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setCategory(cat.id)}
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors ${
-              category === cat.id
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
+      {/* AI Music Generation */}
+      <div className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-medium">AI Music Generator</span>
+        </div>
+        <div className="space-y-1.5">
+          <Textarea
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            rows={2}
+            maxLength={500}
+            placeholder='e.g. "Upbeat electronic music with a driving beat, perfect for a tech product showcase"'
+            className="text-xs resize-none"
+          />
+          <div className="flex items-center gap-2">
+            <Label className="text-[10px] text-muted-foreground">Duration:</Label>
+            <select
+              value={aiDuration}
+              onChange={(e) => setAiDuration(Number(e.target.value))}
+              className="h-6 rounded border bg-background px-1.5 text-[10px]"
+            >
+              <option value={5}>5s</option>
+              <option value={10}>10s</option>
+              <option value={15}>15s</option>
+              <option value={20}>20s</option>
+              <option value={30}>30s</option>
+            </select>
+            <Button
+              size="sm"
+              onClick={handleGenerateMusic}
+              disabled={!aiPrompt.trim() || isGenerating || credits < 1}
+              className="ml-auto h-6 text-[10px] px-2"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  Generate (1 credit)
+                </>
+              )}
+            </Button>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Coins className="h-3 w-3" />
+              {credits}
+            </div>
+          </div>
+        </div>
+        {aiError && <p className="text-[10px] text-destructive">{aiError}</p>}
 
-      {/* Track Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
-        {filteredTracks.map((track) => (
-          <button
-            key={track.id}
-            onClick={() => handleTrackSelect(track.id)}
-            className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-all ${
-              selectedTrack === track.id
-                ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                : 'border-border hover:border-primary/30'
-            }`}
-          >
-            {selectedTrack === track.id && isPlaying ? (
-              <Pause className="h-3 w-3 flex-shrink-0 text-primary" />
-            ) : (
-              <Play className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-            )}
-            <span className="truncate">{track.label}</span>
-          </button>
-        ))}
+        {/* AI Generated Tracks */}
+        {aiTracks.length > 0 && (
+          <div className="space-y-1 mt-1.5">
+            <span className="text-[10px] text-muted-foreground">Generated Tracks</span>
+            <div className="space-y-1 max-h-24 overflow-y-auto">
+              {aiTracks.map((track) => (
+                <button
+                  key={track.id}
+                  onClick={() => handleAiTrackSelect(track)}
+                  className={`flex items-center gap-1.5 rounded-md border px-2 py-1 w-full text-xs transition-all text-left ${
+                    selectedTrack === track.id && selectedType === 'ai'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border hover:border-primary/30'
+                  }`}
+                >
+                  {selectedTrack === track.id && selectedType === 'ai' && isPlaying ? (
+                    <Pause className="h-3 w-3 flex-shrink-0 text-primary" />
+                  ) : (
+                    <Play className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="truncate">{track.prompt}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Volume Control */}
@@ -211,12 +337,12 @@ export function BackgroundMusicMixer({ videoElement }: BackgroundMusicMixerProps
           >
             {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </Button>
-          <span className="text-[10px] text-muted-foreground w-12 truncate">
-            {TRACKS.find((t) => t.id === selectedTrack)?.label}
+          <span className="text-[10px] text-muted-foreground w-16 truncate">
+            {currentLabel}
           </span>
           <Slider
             value={[volume]}
-            onValueChange={([v]) => setVolume(v)}
+            onValueChange={([v]) => handleVolumeChange(v)}
             min={0}
             max={100}
             step={5}

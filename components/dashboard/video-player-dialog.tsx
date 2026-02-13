@@ -86,7 +86,7 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
               videoId={video.id}
               hasScript={!!(video.script || video.prompt)}
             />
-            <BackgroundMusicMixer videoElement={videoRef.current} />
+            <BackgroundMusicMixer videoElement={videoRef.current} creditsRemaining={0} />
           </div>
         </div>
       </DialogContent>
