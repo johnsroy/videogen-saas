@@ -25,13 +25,15 @@ import {
   ArrowRight, RefreshCw, Undo2, Redo2,
 } from 'lucide-react'
 import { ENHANCEMENT_LABELS, TONE_OPTIONS, DURATION_OPTIONS } from '@/lib/ai-prompts'
+import { canUseAI, getAILimit } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 
 interface AiScriptStudioProps {
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
 }
 
-export function AiScriptStudio({ isProPlan, aiUsageThisMonth }: AiScriptStudioProps) {
+export function AiScriptStudio({ planId, aiUsageThisMonth }: AiScriptStudioProps) {
   const router = useRouter()
 
   // Generation settings
@@ -60,7 +62,8 @@ export function AiScriptStudio({ isProPlan, aiUsageThisMonth }: AiScriptStudioPr
   const [lastTopic, setLastTopic] = useState('')
   const [hasGenerated, setHasGenerated] = useState(false)
 
-  const limitReached = !isProPlan && usageCount >= 10
+  const aiLimit = getAILimit(planId)
+  const limitReached = !canUseAI(planId, usageCount)
 
   // Script stats
   const stats = useMemo(() => {
@@ -430,9 +433,9 @@ export function AiScriptStudio({ isProPlan, aiUsageThisMonth }: AiScriptStudioPr
             Use in Video
           </Button>
 
-          {!isProPlan && (
+          {aiLimit !== null && (
             <span className="text-xs text-muted-foreground ml-auto">
-              {usageCount} / 10 AI uses
+              {usageCount} / {aiLimit} AI uses
             </span>
           )}
         </div>
@@ -463,7 +466,7 @@ export function AiScriptStudio({ isProPlan, aiUsageThisMonth }: AiScriptStudioPr
 
         {limitReached && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            Free plan AI limit reached (10/month). Upgrade to Pro for unlimited.
+            AI limit reached ({aiLimit}/month). Upgrade your plan for unlimited AI features.
           </p>
         )}
       </CardContent>

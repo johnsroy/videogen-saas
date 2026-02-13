@@ -99,8 +99,8 @@ export function UserNav({ user, plan }: UserNavProps) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <p className="text-sm font-medium">{user.email}</p>
-                {plan === 'pro' && (
-                  <p className="text-xs text-primary">Pro Plan</p>
+                {plan && plan !== 'free' && (
+                  <p className="text-xs text-primary capitalize">{plan} Plan</p>
                 )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

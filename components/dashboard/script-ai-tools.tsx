@@ -11,15 +11,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sparkles, Wand2, ChevronDown, Loader2, Check, X } from 'lucide-react'
 import { ENHANCEMENT_LABELS } from '@/lib/ai-prompts'
+import { canUseAI, getAILimit } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 
 interface ScriptAiToolsProps {
   currentScript: string
   onScriptChange: (script: string) => void
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
 }
 
-export function ScriptAiTools({ currentScript, onScriptChange, isProPlan, aiUsageThisMonth }: ScriptAiToolsProps) {
+export function ScriptAiTools({ currentScript, onScriptChange, planId, aiUsageThisMonth }: ScriptAiToolsProps) {
   const [showGenerator, setShowGenerator] = useState(false)
   const [topic, setTopic] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -28,7 +30,8 @@ export function ScriptAiTools({ currentScript, onScriptChange, isProPlan, aiUsag
   const [enhanceAction, setEnhanceAction] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const limitReached = !isProPlan && aiUsageThisMonth >= 10
+  const aiLimit = getAILimit(planId)
+  const limitReached = !canUseAI(planId, aiUsageThisMonth)
 
   async function handleGenerate() {
     if (!topic.trim()) return
@@ -133,9 +136,9 @@ export function ScriptAiTools({ currentScript, onScriptChange, isProPlan, aiUsag
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {!isProPlan && (
+        {aiLimit !== null && (
           <span className="text-xs text-muted-foreground">
-            {aiUsageThisMonth} / 10 AI uses
+            {aiUsageThisMonth} / {aiLimit} AI uses
           </span>
         )}
       </div>
@@ -187,7 +190,7 @@ export function ScriptAiTools({ currentScript, onScriptChange, isProPlan, aiUsag
 
       {limitReached && (
         <p className="text-xs text-yellow-600 dark:text-yellow-400">
-          AI limit reached (10/month). Upgrade to Pro for unlimited.
+          AI limit reached ({aiLimit}/month). Upgrade your plan for unlimited AI features.
         </p>
       )}
     </div>

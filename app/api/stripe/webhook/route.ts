@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getPlanFromPriceId } from '@/lib/plans'
+import { allocateCredits } from '@/lib/credits'
 import Stripe from 'stripe'
 
 export async function POST(request: Request) {
@@ -100,12 +102,14 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
     ? new Date(item.current_period_end * 1000).toISOString()
     : null
 
+  const plan = subscription.status === 'active' ? getPlanFromPriceId(item?.price?.id ?? '') : 'free'
+
   await getSupabaseAdmin().from('subscriptions').upsert(
     {
       user_id: userId,
       stripe_customer_id: subscription.customer as string,
       stripe_subscription_id: subscription.id,
-      plan: subscription.status === 'active' ? 'pro' : 'free',
+      plan,
       billing_interval: interval || null,
       status: subscription.status,
       current_period_end: periodEnd,
@@ -114,4 +118,9 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
     },
     { onConflict: 'user_id' }
   )
+
+  // Allocate credits when subscription is active
+  if (subscription.status === 'active' && plan !== 'free') {
+    await allocateCredits(userId, plan)
+  }
 }

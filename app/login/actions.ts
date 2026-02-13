@@ -19,6 +19,21 @@ export async function login(formData: FormData) {
     redirect('/login?error=' + encodeURIComponent(error.message))
   }
 
+  // Check if onboarding is completed
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: profile } = await supabase
+      .from('onboarding_profiles')
+      .select('completed_at')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!profile?.completed_at) {
+      revalidatePath('/', 'layout')
+      redirect('/onboarding')
+    }
+  }
+
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }

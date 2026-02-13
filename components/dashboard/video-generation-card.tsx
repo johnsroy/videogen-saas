@@ -18,16 +18,18 @@ import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
 import { ScriptAiTools } from './script-ai-tools'
 import { Video, Wand2, Loader2 } from 'lucide-react'
+import { canGenerateVideo, getVideoLimit } from '@/lib/plan-utils'
+import { UpgradeModal } from './upgrade-modal'
+import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 interface VideoGenerationCardProps {
-  plan: string
-  isProPlan: boolean
+  planId: PlanId
   videosThisMonth: number
   aiUsageThisMonth: number
 }
 
-export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageThisMonth }: VideoGenerationCardProps) {
+export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth }: VideoGenerationCardProps) {
   const [mode, setMode] = useState<'avatar' | 'prompt'>('avatar')
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
@@ -37,6 +39,7 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
   const [dimension, setDimension] = useState('1280x720')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // Check for prefilled script from Smart Editing "Use in Video"
   useEffect(() => {
@@ -70,7 +73,8 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
     return () => window.removeEventListener('video-remix', handleRemix)
   }, [])
 
-  const limitReached = !isProPlan && videosThisMonth >= 5
+  const videoLimit = getVideoLimit(planId)
+  const limitReached = !canGenerateVideo(planId, videosThisMonth)
 
   const canGenerate =
     !isGenerating &&
@@ -119,9 +123,9 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
           Generate Video
         </CardTitle>
         <CardDescription>
-          {isProPlan
+          {videoLimit === null
             ? 'Unlimited videos'
-            : `${videosThisMonth} / 5 videos used this month`}
+            : `${videosThisMonth} / ${videoLimit} videos used this month`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -167,7 +171,7 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
               <ScriptAiTools
                 currentScript={script}
                 onScriptChange={setScript}
-                isProPlan={isProPlan}
+                planId={planId}
                 aiUsageThisMonth={aiUsageThisMonth}
               />
             </div>
@@ -214,7 +218,7 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
               <ScriptAiTools
                 currentScript={prompt}
                 onScriptChange={setPrompt}
-                isProPlan={isProPlan}
+                planId={planId}
                 aiUsageThisMonth={aiUsageThisMonth}
               />
             </div>
@@ -247,13 +251,21 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
 
         {limitReached && (
           <div className="mt-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
-            You&apos;ve used all 5 free videos this month. Upgrade to Pro for unlimited videos.
+            You&apos;ve reached your monthly video limit.{' '}
+            <button
+              type="button"
+              className="underline font-medium"
+              onClick={() => setShowUpgradeModal(true)}
+            >
+              Upgrade your plan
+            </button>{' '}
+            for more videos.
           </div>
         )}
 
         <Button
-          onClick={handleGenerate}
-          disabled={!canGenerate}
+          onClick={limitReached ? () => setShowUpgradeModal(true) : handleGenerate}
+          disabled={limitReached ? false : !canGenerate}
           className="mt-4 w-full"
         >
           {isGenerating ? (
@@ -262,11 +274,18 @@ export function VideoGenerationCard({ plan, isProPlan, videosThisMonth, aiUsageT
               Generating...
             </>
           ) : limitReached ? (
-            'Upgrade to Pro'
+            'Upgrade Plan'
           ) : (
             'Generate Video'
           )}
         </Button>
+
+        <UpgradeModal
+          open={showUpgradeModal}
+          onOpenChange={setShowUpgradeModal}
+          reason="video_limit"
+          currentPlan={planId}
+        />
       </CardContent>
     </Card>
   )

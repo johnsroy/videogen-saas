@@ -24,6 +24,13 @@ interface VideoPlayerDialogProps {
 export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDialogProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  // Persisted Veo videos (Supabase Storage) can be served directly — no proxy needed.
+  // Only legacy Google API URLs need the proxy for auth.
+  const isPersistedVeo = video.provider === 'google_veo' && video.video_url?.includes('supabase.co/storage/')
+  const needsProxy = video.provider === 'google_veo' && !isPersistedVeo
+  const videoSrc = needsProxy ? `/api/veo/download/${video.id}` : video.video_url!
+  const downloadHref = needsProxy ? `/api/veo/download/${video.id}` : video.video_url!
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -34,10 +41,10 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
           {video.video_url ? (
             <video
               ref={videoRef}
-              src={video.video_url}
+              src={videoSrc}
               controls
               autoPlay
-              crossOrigin="anonymous"
+              {...(!isPersistedVeo && video.provider !== 'google_veo' && { crossOrigin: 'anonymous' as const })}
               className="w-full rounded-lg"
             >
               Your browser does not support the video tag.
@@ -59,7 +66,12 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
               <RemixButton video={video} onClose={() => onOpenChange(false)} />
               {video.video_url && (
                 <Button variant="outline" size="sm" asChild>
-                  <a href={video.video_url} download target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={downloadHref}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Download
                   </a>

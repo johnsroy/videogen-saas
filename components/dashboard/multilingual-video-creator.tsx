@@ -16,11 +16,13 @@ import {
 import { Globe, Loader2, Sparkles, Video, Check, Copy } from 'lucide-react'
 import { SUPPORTED_LANGUAGES } from '@/lib/languages'
 import { TONE_OPTIONS, DURATION_OPTIONS } from '@/lib/ai-prompts'
+import { canUseAI, canGenerateVideo, getAILimit, getVideoLimit } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 import { AvatarPicker } from '@/components/dashboard/avatar-picker'
 import { VoicePicker } from '@/components/dashboard/voice-picker'
 
 interface MultilingualVideoCreatorProps {
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
   videosThisMonth: number
 }
@@ -28,7 +30,7 @@ interface MultilingualVideoCreatorProps {
 type Step = 'setup' | 'script' | 'video'
 
 export function MultilingualVideoCreator({
-  isProPlan,
+  planId,
   aiUsageThisMonth,
   videosThisMonth,
 }: MultilingualVideoCreatorProps) {
@@ -57,8 +59,10 @@ export function MultilingualVideoCreator({
   const [usageCount, setUsageCount] = useState(aiUsageThisMonth)
   const [copied, setCopied] = useState(false)
 
-  const limitReached = !isProPlan && usageCount >= 10
-  const videoLimitReached = !isProPlan && videosThisMonth >= 3
+  const aiLimit = getAILimit(planId)
+  const videoLimit = getVideoLimit(planId)
+  const limitReached = !canUseAI(planId, usageCount)
+  const videoLimitReached = !canGenerateVideo(planId, videosThisMonth)
 
   const selectedLang = SUPPORTED_LANGUAGES.find((l) => l.code === language)
 
@@ -372,7 +376,7 @@ export function MultilingualVideoCreator({
 
             {videoLimitReached && (
               <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                Free plan video limit reached (3/month). Upgrade to Pro for unlimited.
+                Video limit reached ({videoLimit}/month). Upgrade your plan for more videos.
               </p>
             )}
           </div>
@@ -400,13 +404,13 @@ export function MultilingualVideoCreator({
 
         {limitReached && step === 'setup' && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            Free plan AI limit reached (10/month). Upgrade to Pro for unlimited.
+            AI limit reached ({aiLimit}/month). Upgrade your plan for unlimited AI features.
           </p>
         )}
 
-        {!isProPlan && step === 'setup' && (
+        {aiLimit !== null && step === 'setup' && (
           <span className="text-xs text-muted-foreground">
-            {usageCount} / 10 AI uses this month
+            {usageCount} / {aiLimit} AI uses this month
           </span>
         )}
       </CardContent>

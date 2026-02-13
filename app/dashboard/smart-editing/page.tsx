@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import { SmartEditingContent } from './content'
+import { getEffectivePlan } from '@/lib/plan-utils'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 export default async function SmartEditingPage() {
@@ -44,7 +45,7 @@ export default async function SmartEditingPage() {
 
   const plan = subscription?.plan ?? 'free'
   const status = subscription?.status ?? 'active'
-  const isProPlan = plan === 'pro' && status === 'active'
+  const planId = getEffectivePlan(plan, status)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -58,7 +59,7 @@ export default async function SmartEditingPage() {
       <DashboardNav />
 
       <SmartEditingContent
-        isProPlan={isProPlan}
+        planId={planId}
         aiUsageThisMonth={aiUsageThisMonth ?? 0}
         videosThisMonth={videosThisMonth ?? 0}
         completedVideos={(completedVideos ?? []) as VideoRecord[]}

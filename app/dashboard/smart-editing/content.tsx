@@ -5,17 +5,18 @@ import { AiScriptStudio } from '@/components/dashboard/ai-script-studio'
 import { CaptionGenerator } from '@/components/dashboard/caption-generator'
 import { ScriptTemplates } from '@/components/dashboard/script-templates'
 import { VideoRemixStudio } from '@/components/dashboard/video-remix-studio'
+import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 interface SmartEditingContentProps {
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
   videosThisMonth: number
   completedVideos: VideoRecord[]
 }
 
 export function SmartEditingContent({
-  isProPlan,
+  planId,
   aiUsageThisMonth,
   videosThisMonth,
   completedVideos,
@@ -70,7 +71,7 @@ export function SmartEditingContent({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div ref={studioRef}>
           <AiScriptStudio
-            isProPlan={isProPlan}
+            planId={planId}
             aiUsageThisMonth={aiUsageThisMonth}
           />
         </div>
@@ -86,7 +87,7 @@ export function SmartEditingContent({
         <CaptionGenerator completedVideos={completedVideos} />
         <VideoRemixStudio
           completedVideos={completedVideos}
-          isProPlan={isProPlan}
+          planId={planId}
           videosThisMonth={videosThisMonth}
         />
       </div>

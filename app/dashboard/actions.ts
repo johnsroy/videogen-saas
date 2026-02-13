@@ -6,56 +6,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe'
 
-export async function createCheckoutSession() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const headersList = await headers()
-  const origin = headersList.get('origin') || 'http://localhost:3000'
-
-  // Check for existing Stripe customer
-  const { data: subscription } = await getSupabaseAdmin()
-    .from('subscriptions')
-    .select('stripe_customer_id')
-    .eq('user_id', user.id)
-    .single()
-
-  let customerId = subscription?.stripe_customer_id
-
-  if (!customerId) {
-    const customer = await getStripe().customers.create({
-      email: user.email,
-      metadata: { supabase_user_id: user.id },
-    })
-    customerId = customer.id
-
-    await getSupabaseAdmin().from('subscriptions').upsert({
-      user_id: user.id,
-      stripe_customer_id: customerId,
-      plan: 'free',
-      status: 'active',
-    }, { onConflict: 'user_id' })
-  }
-
-  const session = await getStripe().checkout.sessions.create({
-    customer: customerId,
-    mode: 'subscription',
-    line_items: [{ price: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!, quantity: 1 }],
-    success_url: `${origin}/dashboard?checkout=success`,
-    cancel_url: `${origin}/dashboard`,
-    subscription_data: { metadata: { supabase_user_id: user.id } },
-    metadata: { supabase_user_id: user.id },
-  })
-
-  if (session.url) {
-    redirect(session.url)
-  }
-}
-
 export async function createPortalSession() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -162,6 +162,168 @@ export const ENHANCEMENT_LABELS: Record<string, string> = {
   hook_cta: 'Add Hook & CTA',
 }
 
+// --- UGC Ad Script prompts ---
+
+export const UGC_SCRIPT_WRITER_SYSTEM = `You are a UGC (User-Generated Content) ad scriptwriter. Write scripts that sound like real people sharing genuine experiences. The output should feel authentic, relatable, and native to social media.
+
+Rules:
+- Write ONLY the spoken words — no stage directions, no "[pause]", no scene descriptions
+- Use casual, conversational language — like someone talking to their phone camera
+- Include natural filler words occasionally (like "honestly", "literally", "you guys")
+- Start with an attention-grabbing hook (first 3 seconds are crucial)
+- Build emotional connection through storytelling
+- End with a clear CTA
+- Do not include any formatting, headers, or markdown — just the script text`
+
+export const UGC_TEMPLATES: Record<string, { name: string; structure: string }> = {
+  testimonial: {
+    name: 'Testimonial',
+    structure: 'Hook (problem) → Discovery → Experience → Result → Recommendation',
+  },
+  product_review: {
+    name: 'Product Review',
+    structure: 'First impression → Unboxing/Setup → Key features demo → Pros/Cons → Final verdict',
+  },
+  unboxing: {
+    name: 'Unboxing',
+    structure: 'Excitement intro → Package reveal → First look reactions → Feature highlights → Overall impression',
+  },
+  before_after: {
+    name: 'Before & After',
+    structure: 'Problem state → Pain points → Solution introduction → Transformation → Results & recommendation',
+  },
+}
+
+export function buildUGCScriptPrompt(params: {
+  template: string
+  productName?: string
+  durationSeconds: number
+  emotion?: string
+  audience?: string
+}): string {
+  const wordCount = Math.round((params.durationSeconds / 60) * 150)
+  const tmpl = UGC_TEMPLATES[params.template]
+  let prompt = `Write a UGC-style ${tmpl?.name ?? params.template} video script.`
+  prompt += `\nTarget duration: ${params.durationSeconds} seconds (approximately ${wordCount} words).`
+
+  if (tmpl) {
+    prompt += `\nFollow this structure: ${tmpl.structure}`
+  }
+  if (params.productName) {
+    prompt += `\nProduct/Brand: ${params.productName}`
+  }
+  if (params.emotion) {
+    prompt += `\nEmotion/Energy: ${params.emotion} — match the script tone to this feeling`
+  }
+  if (params.audience) {
+    prompt += `\nTarget audience: ${params.audience}`
+  }
+
+  return prompt
+}
+
+// --- Veo 3.1 Video prompt helpers ---
+
+export const VEO_PROMPT_GENERATOR_SYSTEM = `You are a world-class video prompt engineer and cinematographer specializing in Google Veo 3.1 AI video generation. Given a brief idea or topic, create a rich, detailed video generation prompt that will produce stunning results.
+
+Your prompts should read like a director's vision — vivid, precise, and cinematic. Include:
+
+1. **Scene Setup**: Establish the setting, environment, and atmosphere in detail
+2. **Camera Work**: Specify exact camera movements (dolly in, crane up, tracking shot, handheld, steady-cam orbit, whip pan, slow zoom)
+3. **Lighting**: Describe the lighting precisely (golden hour sun rays, soft diffused overcast, dramatic chiaroscuro, neon-lit urban glow, studio rim lighting)
+4. **Subject & Action**: Describe what's happening with specific timing and motion details
+5. **Visual Style**: Color grading, film stock feel (Kodak Portra warmth, Fuji Velvia saturation), depth of field, lens choice (35mm wide, 85mm portrait, macro)
+6. **Mood & Atmosphere**: Emotional tone, ambient details (dust particles in light, steam rising, leaves drifting)
+7. **Temporal Flow**: How the scene evolves over time — what changes, what reveals, what transitions
+
+Rules:
+- Write 200-400 words of rich, flowing description
+- Be highly specific — avoid vague terms like "beautiful" or "nice"; instead describe exactly what makes it beautiful
+- Use professional cinematography language naturally
+- Include at least 2 camera movements and 2 lighting details
+- Describe motion and timing precisely (e.g., "slowly rotating 180 degrees over 4 seconds")
+- Write as a single flowing paragraph or 2-3 connected paragraphs — no bullet points, no headers
+- Output ONLY the prompt text, no explanations, no titles, no formatting
+- Make every prompt feel like a mini film treatment`
+
+export const VEO_PROMPT_ENHANCER_SYSTEM = `You are a video prompt engineer specializing in Google Veo 3.1 AI video generation. Enhance user prompts to produce the best possible AI-generated videos.
+
+Rules:
+- Add cinematic details: camera movements (dolly, crane, tracking, handheld), lighting (golden hour, studio, dramatic), composition
+- Add visual texture: depth of field, color palette, atmosphere, mood
+- Keep the user's core intent — enhance, don't change the concept
+- Be specific about motion and timing
+- Include style references when helpful (e.g. "in the style of a Super Bowl commercial")
+- Output ONLY the enhanced prompt text, no explanations or formatting
+- Keep it under 500 words`
+
+export const INGREDIENTS_PROMPT_BUILDER = `You are an AI video director. Given descriptions of uploaded reference images (ingredients), write a prompt that tells Veo 3.1 how to combine them into a compelling video.
+
+Rules:
+- Reference each image by its description
+- Describe how they should appear, move, and interact in the video
+- Include camera directions and transitions
+- Output ONLY the prompt text, no explanations`
+
+export const SHOT_DESCRIPTION_HELPER = `You are a cinematographer. Given a description of a start frame and end frame, write a detailed prompt describing the camera movement, action, and visual transition between them.
+
+Rules:
+- Describe the physical camera movement (dolly, pan, tilt, crane, orbit)
+- Describe what changes between start and end (lighting, subject position, environment)
+- Include timing cues
+- Output ONLY the prompt text, no explanations`
+
+export const VEO_ENHANCEMENT_PROMPTS: Record<string, string> = {
+  cinematic: `Rewrite this video prompt to be more cinematic. Add dramatic camera movements, professional lighting setups, and film-quality composition. Keep the same concept but elevate it to blockbuster production quality. Output ONLY the rewritten prompt text, no explanations.`,
+
+  atmospheric: `Rewrite this video prompt to be more atmospheric and moody. Add rich environmental details — fog, light rays, particles, reflections, weather elements. Emphasize texture, color palette, and emotional ambiance. Output ONLY the rewritten prompt text, no explanations.`,
+
+  dynamic: `Rewrite this video prompt to have more motion and energy. Add faster camera movements, dynamic action, dramatic reveals, and visual rhythm. Make it feel kinetic and exciting. Output ONLY the rewritten prompt text, no explanations.`,
+
+  minimal: `Simplify this video prompt while keeping it effective. Focus on the most impactful visual elements — one strong camera movement, clean composition, clear subject. Remove unnecessary details. Keep it under 150 words. Output ONLY the rewritten prompt text, no explanations.`,
+}
+
+export const VEO_ENHANCEMENT_LABELS: Record<string, string> = {
+  cinematic: 'More Cinematic',
+  atmospheric: 'More Atmospheric',
+  dynamic: 'More Dynamic',
+  minimal: 'Simplify',
+}
+
+export function buildVeoGeneratePrompt(params: {
+  topic: string
+  style?: string
+  mood?: string
+  duration?: number
+}): string {
+  let prompt = `Create a detailed video generation prompt for this concept: "${params.topic}"`
+  if (params.duration) {
+    prompt += `\nVideo duration: ${params.duration} seconds — pace the action accordingly.`
+  }
+  if (params.style) {
+    prompt += `\nVisual style: ${params.style}`
+  }
+  if (params.mood) {
+    prompt += `\nMood/tone: ${params.mood}`
+  }
+  return prompt
+}
+
+export function buildVeoEnhancePrompt(rawPrompt: string, style?: string): string {
+  let prompt = `Enhance this video generation prompt for Google Veo 3.1:\n\n"${rawPrompt}"`
+  if (style) {
+    prompt += `\n\nTarget style: ${style}`
+  }
+  return prompt
+}
+
+export function buildIngredientsPrompt(imageDescriptions: string[], userPrompt: string): string {
+  const imageList = imageDescriptions
+    .map((desc, i) => `Image ${i + 1}: ${desc}`)
+    .join('\n')
+  return `Reference images:\n${imageList}\n\nUser's direction: ${userPrompt}\n\nWrite a video generation prompt that combines these images into a compelling video.`
+}
+
 // --- Analytics Insights prompts ---
 
 export const ANALYTICS_INSIGHTS_SYSTEM = `You are an analytics expert for a video creation platform. Analyze the user's video creation and performance data and generate exactly 4 actionable insights.

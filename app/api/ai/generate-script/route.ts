@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { chatCompletion } from '@/lib/anthropic'
 import { SCRIPT_WRITER_SYSTEM, buildGeneratePrompt } from '@/lib/ai-prompts'
+import { getEffectivePlan, canUseAI, getAILimit } from '@/lib/plan-utils'
 
 function getFirstDayOfMonth(): string {
   const now = new Date()
@@ -46,18 +47,19 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .single()
 
-    const isProActive = subscription?.plan === 'pro' && subscription?.status === 'active'
+    const planId = getEffectivePlan(subscription?.plan, subscription?.status)
+    const aiLimit = getAILimit(planId)
 
-    if (!isProActive) {
+    if (aiLimit !== null) {
       const { count } = await getSupabaseAdmin()
         .from('script_enhancements')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', getFirstDayOfMonth())
 
-      if ((count ?? 0) >= 10) {
+      if (!canUseAI(planId, count ?? 0)) {
         return NextResponse.json(
-          { error: 'Monthly AI limit reached. Upgrade to Pro for unlimited AI features.', code: 'LIMIT_REACHED' },
+          { error: `Monthly AI limit of ${aiLimit} uses reached. Upgrade your plan for unlimited AI features.`, code: 'LIMIT_REACHED' },
           { status: 403 }
         )
       }

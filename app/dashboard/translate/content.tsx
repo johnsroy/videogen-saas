@@ -3,17 +3,18 @@
 import { ScriptTranslator } from '@/components/dashboard/script-translator'
 import { MultilingualVideoCreator } from '@/components/dashboard/multilingual-video-creator'
 import { CaptionTranslator } from '@/components/dashboard/caption-translator'
+import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 interface TranslateContentProps {
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
   videosThisMonth: number
   completedVideos: VideoRecord[]
 }
 
 export function TranslateContent({
-  isProPlan,
+  planId,
   aiUsageThisMonth,
   videosThisMonth,
   completedVideos,
@@ -22,20 +23,20 @@ export function TranslateContent({
     <div className="space-y-6">
       {/* Row 1: Script Translator (full width) */}
       <ScriptTranslator
-        isProPlan={isProPlan}
+        planId={planId}
         aiUsageThisMonth={aiUsageThisMonth}
       />
 
       {/* Row 2: Multi-Language Video Creator + Caption Translator */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <MultilingualVideoCreator
-          isProPlan={isProPlan}
+          planId={planId}
           aiUsageThisMonth={aiUsageThisMonth}
           videosThisMonth={videosThisMonth}
         />
         <CaptionTranslator
           completedVideos={completedVideos}
-          isProPlan={isProPlan}
+          planId={planId}
           aiUsageThisMonth={aiUsageThisMonth}
         />
       </div>

@@ -14,15 +14,17 @@ import {
 } from '@/components/ui/select'
 import { Subtitles, Loader2, Download, Film, Languages } from 'lucide-react'
 import { SUPPORTED_LANGUAGES } from '@/lib/languages'
+import { canUseAI, getAILimit } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 interface CaptionTranslatorProps {
   completedVideos: VideoRecord[]
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
 }
 
-export function CaptionTranslator({ completedVideos, isProPlan, aiUsageThisMonth }: CaptionTranslatorProps) {
+export function CaptionTranslator({ completedVideos, planId, aiUsageThisMonth }: CaptionTranslatorProps) {
   const [selectedVideoId, setSelectedVideoId] = useState('')
   const [targetLanguage, setTargetLanguage] = useState('')
   const [originalCaptions, setOriginalCaptions] = useState<string | null>(null)
@@ -33,7 +35,8 @@ export function CaptionTranslator({ completedVideos, isProPlan, aiUsageThisMonth
   const [usageCount, setUsageCount] = useState(aiUsageThisMonth)
   const [langSearch, setLangSearch] = useState('')
 
-  const limitReached = !isProPlan && usageCount >= 10
+  const aiLimit = getAILimit(planId)
+  const limitReached = !canUseAI(planId, usageCount)
   const selectedVideo = completedVideos.find((v) => v.id === selectedVideoId)
   const targetLang = SUPPORTED_LANGUAGES.find((l) => l.code === targetLanguage)
 
@@ -252,13 +255,13 @@ export function CaptionTranslator({ completedVideos, isProPlan, aiUsageThisMonth
 
         {limitReached && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            Free plan AI limit reached (10/month). Upgrade to Pro for unlimited.
+            AI limit reached ({aiLimit}/month). Upgrade your plan for unlimited AI features.
           </p>
         )}
 
-        {!isProPlan && originalCaptions && (
+        {aiLimit !== null && originalCaptions && (
           <span className="text-xs text-muted-foreground">
-            {usageCount} / 10 AI uses this month
+            {usageCount} / {aiLimit} AI uses this month
           </span>
         )}
       </CardContent>

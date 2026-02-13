@@ -16,17 +16,19 @@ import {
 import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
 import { RefreshCw, Loader2, Film } from 'lucide-react'
+import { canGenerateVideo, getVideoLimit } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 import type { VideoRecord, HeyGenAvatar, HeyGenVoice } from '@/lib/heygen-types'
 
 interface VideoRemixStudioProps {
   completedVideos: VideoRecord[]
-  isProPlan: boolean
+  planId: PlanId
   videosThisMonth: number
 }
 
 export function VideoRemixStudio({
   completedVideos,
-  isProPlan,
+  planId,
   videosThisMonth,
 }: VideoRemixStudioProps) {
   const [selectedVideoId, setSelectedVideoId] = useState<string>('')
@@ -44,7 +46,8 @@ export function VideoRemixStudio({
   const [voices, setVoices] = useState<HeyGenVoice[]>([])
 
   const selectedVideo = completedVideos.find((v) => v.id === selectedVideoId)
-  const limitReached = !isProPlan && videosThisMonth >= 5
+  const videoLimit = getVideoLimit(planId)
+  const limitReached = !canGenerateVideo(planId, videosThisMonth)
 
   // Fetch avatar/voice names when user first selects a video
   useEffect(() => {
@@ -240,7 +243,7 @@ export function VideoRemixStudio({
                   Generating Remix...
                 </>
               ) : limitReached ? (
-                'Upgrade to Pro'
+                'Upgrade Plan'
               ) : (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -259,7 +262,7 @@ export function VideoRemixStudio({
 
             {limitReached && (
               <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                Free plan limit reached (5 videos/month). Upgrade to Pro for unlimited.
+                Video limit reached ({videoLimit}/month). Upgrade your plan for more videos.
               </p>
             )}
           </>

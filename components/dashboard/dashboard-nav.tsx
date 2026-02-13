@@ -2,14 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Video, Sparkles, Globe, BarChart3 } from 'lucide-react'
+import { Video, Sparkles, Globe, BarChart3, Film, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/dashboard', label: 'Create', icon: Video },
+  { href: '/dashboard/ugc', label: 'AI Video Studio', icon: Film },
   { href: '/dashboard/smart-editing', label: 'Smart Editing', icon: Sparkles },
   { href: '/dashboard/translate', label: 'Translate', icon: Globe },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/dashboard/usage', label: 'Usage', icon: Zap },
 ]
 
 export function DashboardNav() {

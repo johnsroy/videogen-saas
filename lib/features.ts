@@ -1,4 +1,4 @@
-import { Video, Sparkles, Zap, Globe, Shield, BarChart3, type LucideIcon } from 'lucide-react'
+import { Video, Sparkles, Zap, Globe, Shield, BarChart3, Users, Layers, type LucideIcon } from 'lucide-react'
 
 export interface Feature {
   slug: string
@@ -92,6 +92,34 @@ export const features: Feature[] = [
       'Audience retention graphs and drop-off analysis',
       'Geographic and demographic audience breakdowns',
       'A/B testing for thumbnails and video variations',
+    ],
+  },
+  {
+    slug: 'ai-video-studio',
+    icon: Users,
+    title: 'AI Video Studio',
+    description: 'Create stunning videos with Google Veo 3.1. Ingredients-to-video, shot design, scene extension — all powered by AI.',
+    longDescription:
+      'Our AI Video Studio powered by Google Veo 3.1 lets you create professional videos from text, images, or both. Upload product photos as "ingredients" and watch AI combine them into compelling video ads. Design cinematic shots with start and end frames, extend scenes, and generate native audio.',
+    showcaseItems: [
+      'Ingredients Studio — upload images, AI creates videos',
+      'Cinematic Shot Designer with start/end frame control',
+      'Scene Extender — make videos longer with AI',
+      'Native audio generation with voice and music',
+    ],
+  },
+  {
+    slug: 'batch-creation',
+    icon: Layers,
+    title: 'Batch Video Creation',
+    description: 'Generate multiple video variations at once. Test different prompts, styles, and settings simultaneously.',
+    longDescription:
+      'Scale your creative output with batch video creation. Queue multiple prompt variations, preview with fast draft mode, then generate your favorites in full quality. Find your winning creative faster than ever.',
+    showcaseItems: [
+      'Draft mode for fast, cheap previews',
+      'Batch generation with variation parameters',
+      'Side-by-side comparison view',
+      'Export all variants for multi-platform distribution',
     ],
   },
 ]

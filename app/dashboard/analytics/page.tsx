@@ -95,7 +95,7 @@ export default async function AnalyticsPage() {
 
   const plan = subscription?.plan ?? 'free'
   const status = subscription?.status ?? 'active'
-  const isProPlan = plan === 'pro' && status === 'active'
+  const isProPlan = plan !== 'free' && status === 'active'
 
   // Format sparklines
   const videoSpark = (videoSparkline || []).map((r: { period: string; count: number }) => ({ date: r.period, value: Number(r.count) }))

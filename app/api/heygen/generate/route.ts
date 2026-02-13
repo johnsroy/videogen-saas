@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { generateVideo, listAvatars, listVoices } from '@/lib/heygen'
+import { getEffectivePlan, canGenerateVideo, getVideoLimit } from '@/lib/plan-utils'
 
 const DIMENSION_MAP: Record<string, { width: number; height: number }> = {
   '1280x720': { width: 1280, height: 720 },
@@ -57,9 +58,10 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .single()
 
-    const isProActive = subscription?.plan === 'pro' && subscription?.status === 'active'
+    const planId = getEffectivePlan(subscription?.plan, subscription?.status)
+    const videoLimit = getVideoLimit(planId)
 
-    if (!isProActive) {
+    if (videoLimit !== null) {
       const { count } = await getSupabaseAdmin()
         .from('videos')
         .select('*', { count: 'exact', head: true })
@@ -67,9 +69,9 @@ export async function POST(request: Request) {
         .neq('status', 'failed')
         .gte('created_at', getFirstDayOfMonth())
 
-      if ((count ?? 0) >= 5) {
+      if (!canGenerateVideo(planId, count ?? 0)) {
         return NextResponse.json(
-          { error: 'Monthly limit reached. Upgrade to Pro for unlimited videos.', code: 'LIMIT_REACHED' },
+          { error: `Monthly limit of ${videoLimit} videos reached. Upgrade your plan for more.`, code: 'LIMIT_REACHED' },
           { status: 403 }
         )
       }

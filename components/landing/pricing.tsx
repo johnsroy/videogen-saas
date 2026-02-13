@@ -2,64 +2,41 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Check, X } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { PLANS, type PlanId } from '@/lib/plans'
 import type { User } from '@supabase/supabase-js'
 
 type BillingInterval = 'month' | 'year'
 
-const features = [
-  { text: '5 videos per month', free: true, pro: true },
-  { text: 'Unlimited videos', free: false, pro: true },
-  { text: '4K resolution', free: false, pro: true },
-  { text: 'Premium templates', free: false, pro: true },
-  { text: 'AI voiceover', free: false, pro: true },
-  { text: 'Custom branding', free: false, pro: true },
-  { text: '720p resolution', free: true, pro: true },
-  { text: 'Basic templates', free: true, pro: true },
-  { text: 'Priority support', free: false, pro: false },
-]
-
-const freeFeatures = features.filter((f) => f.free !== undefined).map((f) => ({
-  text: f.text,
-  included: f.free,
-})).filter((f) => f.text !== 'Unlimited videos' && f.text !== '4K resolution' && f.text !== 'Premium templates')
-
-const proFeatures = features.filter((f) => f.pro !== undefined).map((f) => ({
-  text: f.text,
-  included: f.pro,
-})).filter((f) => f.text !== '5 videos per month' && f.text !== '720p resolution' && f.text !== 'Basic templates')
+const PLAN_ORDER: PlanId[] = ['free', 'starter', 'creator', 'enterprise']
 
 export function Pricing({ user }: { user: User | null }) {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('month')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState<PlanId | null>(null)
 
-  const proPrice = billingInterval === 'month' ? '$29' : '$290'
-  const proInterval = billingInterval === 'month' ? '/month' : '/year'
-
-  async function handleProCheckout() {
+  async function handleCheckout(planId: PlanId) {
     if (!user) {
       window.location.href = '/signup'
       return
     }
 
-    setLoading(true)
+    setLoading(planId)
     try {
-      const response = await fetch('/api/stripe/checkout', {
+      const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interval: billingInterval }),
+        body: JSON.stringify({ plan: planId, interval: billingInterval }),
       })
-
-      const { url, error } = await response.json()
+      const { url, error } = await res.json()
       if (error) throw new Error(error)
       if (url) window.location.href = url
     } catch (error) {
       console.error('Checkout error:', error)
     } finally {
-      setLoading(false)
+      setLoading(null)
     }
   }
 
@@ -71,7 +48,7 @@ export function Pricing({ user }: { user: User | null }) {
             Simple, transparent pricing
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Choose the plan that fits your needs. Upgrade or downgrade anytime.
+            Start free, scale as you grow. No hidden fees.
           </p>
         </div>
 
@@ -105,108 +82,75 @@ export function Pricing({ user }: { user: User | null }) {
           </div>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
-          {/* Free Tier */}
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Free</CardTitle>
-              <CardDescription>Perfect for trying out VideoGen.</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">$0</span>
-                <span className="text-muted-foreground">/month</span>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <ul className="space-y-3">
-                {freeFeatures.map((feature) => (
-                  <li key={feature.text} className="flex items-center gap-2">
-                    {feature.included ? (
-                      <Check className="h-4 w-4 text-primary" />
-                    ) : (
-                      <X className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className={cn('text-sm', !feature.included && 'text-muted-foreground')}>
-                      {feature.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/signup">Get Started</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {PLAN_ORDER.map((planId) => {
+            const plan = PLANS[planId]
+            const isPopular = planId === 'creator'
+            const price = billingInterval === 'month'
+              ? plan.monthlyPrice
+              : plan.yearlyPrice
 
-          {/* Pro Tier */}
-          <Card className="relative flex flex-col border-primary shadow-lg">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
-              Most Popular
-            </div>
-            <CardHeader>
-              <CardTitle>Pro</CardTitle>
-              <CardDescription>For creators and small teams.</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">{proPrice}</span>
-                <span className="text-muted-foreground">{proInterval}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <ul className="space-y-3">
-                {proFeatures.map((feature) => (
-                  <li key={feature.text} className="flex items-center gap-2">
-                    {feature.included ? (
-                      <Check className="h-4 w-4 text-primary" />
+            return (
+              <Card
+                key={planId}
+                className={cn(
+                  'relative flex flex-col',
+                  isPopular && 'border-primary shadow-lg'
+                )}
+              >
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+                    Most Popular
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle>{plan.name}</CardTitle>
+                  <CardDescription>{plan.description}</CardDescription>
+                  <div className="mt-4">
+                    {price !== null ? (
+                      <>
+                        <span className="text-4xl font-bold">${price}</span>
+                        <span className="text-muted-foreground">
+                          /{billingInterval === 'month' ? 'mo' : 'yr'}
+                        </span>
+                      </>
                     ) : (
-                      <X className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-4xl font-bold">Custom</span>
                     )}
-                    <span className={cn('text-sm', !feature.included && 'text-muted-foreground')}>
-                      {feature.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" onClick={handleProCheckout} disabled={loading}>
-                {loading ? 'Loading...' : 'Get Started'}
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/* Enterprise Tier */}
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Enterprise</CardTitle>
-              <CardDescription>For organizations at scale.</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">Custom</span>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <ul className="space-y-3">
-                {[
-                  'Unlimited videos',
-                  '4K resolution',
-                  'Premium templates',
-                  'AI voiceover',
-                  'Custom branding',
-                  'Priority support',
-                ].map((text) => (
-                  <li key={text} className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    <span className="text-sm">{text}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="mailto:sales@videogen.com">Contact Sales</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <ul className="space-y-2.5">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <span className="text-sm">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+                <CardFooter>
+                  {planId === 'free' ? (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/signup">Get Started</Link>
+                    </Button>
+                  ) : planId === 'enterprise' ? (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="mailto:sales@videogen.com">Contact Sales</Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      className={cn('w-full', isPopular && 'bg-primary')}
+                      onClick={() => handleCheckout(planId)}
+                      disabled={loading !== null}
+                    >
+                      {loading === planId ? 'Loading...' : 'Get Started'}
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
+            )
+          })}
         </div>
       </div>
     </section>

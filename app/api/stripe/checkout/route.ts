@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe'
+import { PLANS, type PlanId } from '@/lib/plans'
 
 export async function POST(request: Request) {
   try {
@@ -12,15 +13,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { interval } = await request.json()
+    const { plan, interval } = await request.json()
+
+    const validPlans: PlanId[] = ['starter', 'creator']
+    if (!plan || !validPlans.includes(plan)) {
+      return NextResponse.json({ error: 'Invalid plan. Choose starter or creator.' }, { status: 400 })
+    }
 
     if (!interval || !['month', 'year'].includes(interval)) {
       return NextResponse.json({ error: 'Invalid billing interval' }, { status: 400 })
     }
 
+    const planConfig = PLANS[plan as PlanId]
     const priceId = interval === 'year'
-      ? process.env.STRIPE_PRO_YEARLY_PRICE_ID!
-      : process.env.STRIPE_PRO_MONTHLY_PRICE_ID!
+      ? planConfig.stripePriceIds.yearly
+      : planConfig.stripePriceIds.monthly
+
+    if (!priceId) {
+      return NextResponse.json({ error: 'Price not configured for this plan' }, { status: 500 })
+    }
 
     // Check for existing Stripe customer
     const { data: subscription } = await getSupabaseAdmin()

@@ -9,13 +9,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Languages, Loader2, Copy, Check, ArrowRight, ArrowRightLeft } from 'lucide-react'
 import { SUPPORTED_LANGUAGES } from '@/lib/languages'
+import { canUseAI, getAILimit } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 
 interface ScriptTranslatorProps {
-  isProPlan: boolean
+  planId: PlanId
   aiUsageThisMonth: number
 }
 
-export function ScriptTranslator({ isProPlan, aiUsageThisMonth }: ScriptTranslatorProps) {
+export function ScriptTranslator({ planId, aiUsageThisMonth }: ScriptTranslatorProps) {
   const router = useRouter()
   const [script, setScript] = useState('')
   const [sourceLanguage, setSourceLanguage] = useState('en')
@@ -27,7 +29,8 @@ export function ScriptTranslator({ isProPlan, aiUsageThisMonth }: ScriptTranslat
   const [usageCount, setUsageCount] = useState(aiUsageThisMonth)
   const [langSearch, setLangSearch] = useState('')
 
-  const limitReached = !isProPlan && usageCount >= 10
+  const aiLimit = getAILimit(planId)
+  const limitReached = !canUseAI(planId, usageCount)
 
   const filteredLanguages = useMemo(() => {
     if (!langSearch.trim()) return SUPPORTED_LANGUAGES
@@ -269,9 +272,9 @@ export function ScriptTranslator({ isProPlan, aiUsageThisMonth }: ScriptTranslat
             </>
           )}
 
-          {!isProPlan && (
+          {aiLimit !== null && (
             <span className="text-xs text-muted-foreground ml-auto">
-              {usageCount} / 10 AI uses
+              {usageCount} / {aiLimit} AI uses
             </span>
           )}
         </div>
@@ -280,7 +283,7 @@ export function ScriptTranslator({ isProPlan, aiUsageThisMonth }: ScriptTranslat
 
         {limitReached && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            Free plan AI limit reached (10/month). Upgrade to Pro for unlimited.
+            AI limit reached ({aiLimit}/month). Upgrade your plan for unlimited AI features.
           </p>
         )}
       </CardContent>

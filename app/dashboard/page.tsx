@@ -3,9 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 import { CreditCard } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { getEffectivePlan, isPaidPlan, getVideoLimit, getPlanDisplayName } from '@/lib/plan-utils'
+import type { PlanId } from '@/lib/plans'
 import { SubscriptionActions } from '@/components/dashboard/subscription-actions'
 import { VideoGenerationCard } from '@/components/dashboard/video-generation-card'
 import { VideoGallery } from '@/components/dashboard/video-gallery'
+import { UsageCard } from '@/components/dashboard/usage-card'
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
 import type { VideoRecord } from '@/lib/heygen-types'
 
@@ -33,7 +36,8 @@ export default async function DashboardPage() {
 
   const plan = subscription?.plan ?? 'free'
   const status = subscription?.status ?? 'active'
-  const isProPlan = plan === 'pro' && status === 'active'
+  const planId = getEffectivePlan(plan, status)
+  const isProPlan = isPaidPlan(planId)
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString('en-US', {
         month: 'long',
@@ -54,7 +58,8 @@ export default async function DashboardPage() {
       <DashboardNav />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Subscription Card */}
+        {/* Subscription + Credits Cards */}
+        <div className="space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -73,7 +78,7 @@ export default async function DashboardPage() {
                     : 'bg-muted text-muted-foreground'
                 )}
               >
-                {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                {getPlanDisplayName(planId)}
               </span>
             </div>
           </CardHeader>
@@ -92,7 +97,7 @@ export default async function DashboardPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Videos this month</span>
                 <span className="font-medium">
-                  {isProPlan ? 'Unlimited' : `${videosThisMonth ?? 0} / 5`}
+                  {getVideoLimit(planId) === null ? 'Unlimited' : `${videosThisMonth ?? 0} / ${getVideoLimit(planId)}`}
                 </span>
               </div>
               {subscription?.cancel_at_period_end && (
@@ -101,15 +106,17 @@ export default async function DashboardPage() {
                 </div>
               )}
             </div>
-            <SubscriptionActions isProPlan={isProPlan} />
+            <SubscriptionActions isProPlan={isProPlan} currentPlan={planId} />
           </CardContent>
         </Card>
+
+        <UsageCard />
+        </div>
 
         {/* Video Generation Card */}
         <div className="lg:col-span-2">
           <VideoGenerationCard
-            plan={plan}
-            isProPlan={isProPlan}
+            planId={planId}
             videosThisMonth={videosThisMonth ?? 0}
             aiUsageThisMonth={aiUsageThisMonth ?? 0}
           />
