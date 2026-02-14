@@ -1,7 +1,20 @@
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { toBlobURL } from '@ffmpeg/util'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import { tmpdir } from 'os'
+import { writeFile, readFile, mkdir, rm } from 'fs/promises'
+import { join } from 'path'
+import { randomUUID } from 'crypto'
 import { convertVttToAss } from './vtt-to-ass'
 import type { CaptionStyles } from './captions'
+
+const execFileAsync = promisify(execFile)
+
+function getFfmpegPath(): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffmpegPath = require('ffmpeg-static') as string
+  if (!ffmpegPath) throw new Error('ffmpeg-static binary not found')
+  return ffmpegPath
+}
 
 export interface ComposeParams {
   sourceVideoUrl: string
@@ -14,122 +27,123 @@ export interface ComposeParams {
   originalAudioVolume?: number  // 0-100
 }
 
-async function downloadToBuffer(url: string): Promise<Uint8Array> {
+async function downloadToFile(url: string, filePath: string): Promise<void> {
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`Failed to download: ${url}`)
-  return new Uint8Array(await res.arrayBuffer())
+  if (!res.ok) throw new Error(`Failed to download: ${url} (${res.status})`)
+  const buffer = Buffer.from(await res.arrayBuffer())
+  await writeFile(filePath, buffer)
 }
 
 export async function composeVideo(params: ComposeParams): Promise<Buffer> {
-  const ffmpeg = new FFmpeg()
+  const ffmpegPath = getFfmpegPath()
+  const workDir = join(tmpdir(), `videogen-${randomUUID()}`)
+  await mkdir(workDir, { recursive: true })
 
-  // Load FFmpeg WASM from CDN
-  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm'
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-  })
+  const inputFile = join(workDir, 'input.mp4')
+  const outputFile = join(workDir, 'output.mp4')
 
-  // Download source video
-  const videoData = await downloadToBuffer(params.sourceVideoUrl)
-  await ffmpeg.writeFile('input.mp4', videoData)
+  try {
+    // Download source video
+    await downloadToFile(params.sourceVideoUrl, inputFile)
 
-  const inputs = ['-i', 'input.mp4']
-  const filterParts: string[] = []
-  let audioInputCount = 1 // input.mp4 is [0]
-  let inputIndex = 1
+    const args: string[] = ['-i', inputFile]
 
-  const origVol = (params.originalAudioVolume ?? 100) / 100
+    // Download and add voiceover
+    let hasVoiceover = false
+    if (params.voiceoverUrl) {
+      const voFile = join(workDir, 'voiceover.mp3')
+      await downloadToFile(params.voiceoverUrl, voFile)
+      args.push('-i', voFile)
+      hasVoiceover = true
+    }
 
-  // Write voiceover if provided
-  if (params.voiceoverUrl) {
-    const voData = await downloadToBuffer(params.voiceoverUrl)
-    await ffmpeg.writeFile('voiceover.mp3', voData)
-    inputs.push('-i', 'voiceover.mp3')
-    audioInputCount++
-    inputIndex++
-  }
+    // Download and add music
+    let hasMusic = false
+    if (params.musicUrl) {
+      const musicFile = join(workDir, 'music.mp3')
+      await downloadToFile(params.musicUrl, musicFile)
+      args.push('-i', musicFile)
+      hasMusic = true
+    }
 
-  // Write music if provided
-  if (params.musicUrl) {
-    const musicData = await downloadToBuffer(params.musicUrl)
-    await ffmpeg.writeFile('music.mp3', musicData)
-    inputs.push('-i', 'music.mp3')
-    audioInputCount++
-    inputIndex++
-  }
+    // Write captions
+    let captionFile: string | undefined
+    if (params.captionVtt) {
+      const assContent = convertVttToAss(params.captionVtt, params.captionStyles)
+      captionFile = join(workDir, 'captions.ass')
+      await writeFile(captionFile, assContent)
+    }
 
-  // Write subtitles if provided
-  if (params.captionVtt) {
-    const assContent = convertVttToAss(params.captionVtt, params.captionStyles)
-    await ffmpeg.writeFile('subs.ass', new TextEncoder().encode(assContent))
-  }
+    // Build filter complex
+    const origVol = (params.originalAudioVolume ?? 100) / 100
+    const voVol = (params.voiceoverVolume ?? 100) / 100
+    const musicVol = (params.musicVolume ?? 30) / 100
 
-  // Build filter complex
-  const voVol = (params.voiceoverVolume ?? 100) / 100
-  const musicVol = (params.musicVolume ?? 30) / 100
+    const filterParts: string[] = []
 
-  // Video filter: burn in subtitles if present
-  const videoFilter = params.captionVtt
-    ? `[0:v]ass=subs.ass[vout]`
-    : `[0:v]copy[vout]`
+    // Video filter: burn in subtitles if present
+    if (captionFile) {
+      // Escape path for FFmpeg on all platforms
+      const escaped = captionFile.replace(/\\/g, '/').replace(/:/g, '\\:')
+      filterParts.push(`[0:v]ass='${escaped}'[vout]`)
+    }
 
-  filterParts.push(videoFilter)
-
-  // Audio mixing
-  if (audioInputCount === 1) {
-    // Only original audio
-    filterParts.push(`[0:a]volume=${origVol}[aout]`)
-  } else {
-    // Mix multiple audio sources
+    // Count audio streams and build mix
     const audioStreams: string[] = []
-    let streamIdx = 0
+    let nextInput = 0
 
     // Original audio
-    filterParts.push(`[0:a]volume=${origVol}[a${streamIdx}]`)
-    audioStreams.push(`[a${streamIdx}]`)
-    streamIdx++
+    filterParts.push(`[${nextInput}:a]volume=${origVol}[a_orig]`)
+    audioStreams.push('[a_orig]')
+    nextInput++
 
-    let nextInput = 1
-    if (params.voiceoverUrl) {
-      filterParts.push(`[${nextInput}:a]volume=${voVol}[a${streamIdx}]`)
-      audioStreams.push(`[a${streamIdx}]`)
-      streamIdx++
+    if (hasVoiceover) {
+      filterParts.push(`[${nextInput}:a]volume=${voVol}[a_vo]`)
+      audioStreams.push('[a_vo]')
       nextInput++
     }
 
-    if (params.musicUrl) {
-      filterParts.push(`[${nextInput}:a]volume=${musicVol}[a${streamIdx}]`)
-      audioStreams.push(`[a${streamIdx}]`)
-      streamIdx++
+    if (hasMusic) {
+      filterParts.push(`[${nextInput}:a]volume=${musicVol}[a_music]`)
+      audioStreams.push('[a_music]')
+      nextInput++
     }
 
-    filterParts.push(
-      `${audioStreams.join('')}amix=inputs=${audioStreams.length}:duration=first:dropout_transition=2[aout]`
+    // Mix audio — use weights=1 per stream to prevent amix normalization
+    if (audioStreams.length > 1) {
+      const weights = audioStreams.map(() => '1').join(' ')
+      filterParts.push(
+        `${audioStreams.join('')}amix=inputs=${audioStreams.length}:duration=first:dropout_transition=2:weights=${weights}[aout]`
+      )
+    } else {
+      filterParts.push(`${audioStreams[0]}anull[aout]`)
+    }
+
+    const filterComplex = filterParts.join(';')
+
+    args.push(
+      '-filter_complex', filterComplex,
+      ...(captionFile ? ['-map', '[vout]'] : ['-map', '0:v']),
+      '-map', '[aout]',
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-movflags', '+faststart',
+      '-y',
+      outputFile,
     )
+
+    // Run FFmpeg with 5 minute timeout
+    await execFileAsync(ffmpegPath, args, {
+      timeout: 300_000,
+      maxBuffer: 10 * 1024 * 1024,
+    })
+
+    return await readFile(outputFile)
+  } finally {
+    // Cleanup entire work directory
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
-
-  const filterComplex = filterParts.join(';')
-
-  // Run FFmpeg
-  await ffmpeg.exec([
-    ...inputs,
-    '-filter_complex', filterComplex,
-    '-map', '[vout]',
-    '-map', '[aout]',
-    '-c:v', 'libx264',
-    '-preset', 'fast',
-    '-crf', '23',
-    '-c:a', 'aac',
-    '-b:a', '128k',
-    '-movflags', '+faststart',
-    '-y',
-    'output.mp4',
-  ])
-
-  // Read output
-  const outputData = await ffmpeg.readFile('output.mp4')
-  await ffmpeg.terminate()
-
-  return Buffer.from(outputData as Uint8Array)
 }

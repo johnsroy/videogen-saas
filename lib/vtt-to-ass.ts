@@ -99,7 +99,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 }
 
 function parseVttTime(ts: string): number {
-  const parts = ts.split(':')
+  // Strip VTT cue settings that may follow the timestamp (e.g. "position:10% align:start")
+  const timeOnly = ts.split(/\s/)[0]
+  const parts = timeOnly.split(':')
   if (parts.length === 3) {
     const [h, m, rest] = parts
     const [s, ms] = rest.split('.')

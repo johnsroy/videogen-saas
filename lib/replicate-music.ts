@@ -1,5 +1,5 @@
 const REPLICATE_API_URL = 'https://api.replicate.com/v1/predictions'
-const MUSICGEN_MODEL = 'meta/musicgen:b05b1dff1d8c386b65adc005f3f8f884f310f150c702e4af2f0ec9f735c4ad8d'
+const MUSICGEN_MODEL = 'meta/musicgen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb'
 
 function getReplicateToken(): string {
   const token = process.env.REPLICATE_API_TOKEN

@@ -65,6 +65,8 @@ export function VideoEditingPanel({
   const [project, setProject] = useState<EditProjectState>(DEFAULT_PROJECT)
   const [isSaving, setIsSaving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [credits, setCredits] = useState(creditsRemaining)
 
   function handleVideoRef(el: HTMLVideoElement | null) {
@@ -75,8 +77,13 @@ export function VideoEditingPanel({
   // Load existing project when video changes
   useEffect(() => {
     setProject(DEFAULT_PROJECT)
+    setLoadError(null)
+    setSaveError(null)
     fetch(`/api/editor/load?source_video_id=${video.id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to load project')
+        return r.json()
+      })
       .then((data) => {
         if (data.project) {
           const p = data.project
@@ -102,38 +109,40 @@ export function VideoEditingPanel({
           })
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setLoadError('Failed to load saved project. Your edits may not be recovered.')
+      })
   }, [video.id])
 
-  const handleVoiceoverGenerated = useCallback((voiceoverId: string, audioUrl: string) => {
-    setProject((p) => ({
+  // Helper: mark project dirty and reset completed status so user knows to re-export
+  function markDirty(updates: Partial<EditProjectState>): (prev: EditProjectState) => EditProjectState {
+    return (p) => ({
       ...p,
-      voiceoverId,
-      voiceoverUrl: audioUrl,
+      ...updates,
       isDirty: true,
-    }))
+      status: p.status === 'completed' ? 'draft' : p.status,
+      exportedVideoUrl: p.status === 'completed' ? null : p.exportedVideoUrl,
+    })
+  }
+
+  const handleVoiceoverGenerated = useCallback((voiceoverId: string, audioUrl: string) => {
+    setProject(markDirty({ voiceoverId, voiceoverUrl: audioUrl }))
   }, [])
 
   const handleCaptionSaved = useCallback((captionContent: string, styles: Record<string, string>) => {
-    setProject((p) => ({
-      ...p,
-      captionContent,
-      captionStyles: styles,
-      isDirty: true,
-    }))
+    setProject(markDirty({ captionContent, captionStyles: styles }))
   }, [])
 
   const handleTrackSelected = useCallback((selection: { type: 'preset' | 'ai'; id: string; url?: string } | null) => {
-    setProject((p) => ({
-      ...p,
+    setProject(markDirty({
       musicSelection: selection ? { type: selection.type, id: selection.id } : null,
       musicUrl: selection?.url || null,
-      isDirty: true,
     }))
   }, [])
 
-  async function handleSave() {
+  async function handleSave(): Promise<string | null> {
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/editor/save', {
         method: 'POST',
@@ -154,33 +163,38 @@ export function VideoEditingPanel({
       const data = await res.json()
       if (res.ok && data.project) {
         setProject((p) => ({ ...p, id: data.project.id, isDirty: false }))
+        return data.project.id
       }
+      setSaveError(data.error || 'Failed to save project')
+      return null
     } catch {
-      // ignore
+      setSaveError('Failed to save project. Please try again.')
+      return null
     } finally {
       setIsSaving(false)
     }
   }
 
   async function handleExport() {
-    // Save first if dirty
-    if (project.isDirty || !project.id) {
-      await handleSave()
+    // Save first if dirty — get the project ID directly from the save response
+    let projectId = project.id
+    if (project.isDirty || !projectId) {
+      const savedId = await handleSave()
+      if (!savedId) {
+        setProject((p) => ({
+          ...p,
+          status: 'failed',
+          exportError: 'Please save the project first',
+        }))
+        return
+      }
+      projectId = savedId
     }
 
     setIsExporting(true)
     setProject((p) => ({ ...p, status: 'exporting', exportError: null }))
 
     try {
-      // Need to get the latest project ID
-      const loadRes = await fetch(`/api/editor/load?source_video_id=${video.id}`)
-      const loadData = await loadRes.json()
-      const projectId = loadData.project?.id || project.id
-
-      if (!projectId) {
-        throw new Error('Please save the project first')
-      }
-
       const res = await fetch('/api/editor/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -247,10 +261,18 @@ export function VideoEditingPanel({
           musicVolume={project.musicVolume}
           hasVoiceover={!!project.voiceoverId}
           hasMusic={!!project.musicSelection}
-          onOriginalChange={(v) => setProject((p) => ({ ...p, originalAudioVolume: v, isDirty: true }))}
-          onVoiceoverChange={(v) => setProject((p) => ({ ...p, voiceoverVolume: v, isDirty: true }))}
-          onMusicChange={(v) => setProject((p) => ({ ...p, musicVolume: v, isDirty: true }))}
+          onOriginalChange={(v) => setProject(markDirty({ originalAudioVolume: v }))}
+          onVoiceoverChange={(v) => setProject(markDirty({ voiceoverVolume: v }))}
+          onMusicChange={(v) => setProject(markDirty({ musicVolume: v }))}
         />
+
+        {/* Errors */}
+        {loadError && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 px-1">{loadError}</p>
+        )}
+        {saveError && (
+          <p className="text-xs text-destructive px-1">{saveError}</p>
+        )}
 
         {/* Export Bar */}
         <ExportBar
@@ -311,7 +333,7 @@ export function VideoEditingPanel({
               videoElement={videoElement}
               creditsRemaining={credits}
               onTrackSelected={handleTrackSelected}
-              onVolumeChanged={(v) => setProject((p) => ({ ...p, musicVolume: v, isDirty: true }))}
+              onVolumeChanged={(v) => setProject(markDirty({ musicVolume: v }))}
               onCreditsChanged={(c) => setCredits(c)}
             />
           </TabsContent>

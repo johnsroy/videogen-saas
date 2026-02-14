@@ -22,7 +22,9 @@ export async function getUserCreditBalance(userId: string): Promise<CreditBalanc
   }
 }
 
-/** Consume credits. Returns success and remaining balance. */
+/** Consume credits atomically. Returns success and remaining balance.
+ * Uses a Postgres function with UPDATE ... WHERE credits_remaining >= amount
+ * to prevent race conditions (double-spend). */
 export async function consumeCredits(params: {
   userId: string
   amount: number
@@ -32,27 +34,23 @@ export async function consumeCredits(params: {
 }): Promise<{ success: boolean; remaining: number }> {
   const { userId, amount, resourceType, resourceId, description } = params
 
-  // Check current balance
-  const { data: bal } = await getSupabaseAdmin()
-    .from('credit_balances')
-    .select('credits_remaining')
-    .eq('user_id', userId)
-    .single()
+  // Atomic deduct via Postgres function — only succeeds if balance >= amount
+  const { data, error } = await getSupabaseAdmin().rpc('consume_credits_atomic', {
+    p_user_id: userId,
+    p_amount: amount,
+  })
 
-  if (!bal || bal.credits_remaining < amount) {
+  const newRemaining = typeof data === 'number' ? data : -1
+
+  if (error || newRemaining < 0) {
+    // Deduction failed — insufficient credits or no balance row
+    const { data: bal } = await getSupabaseAdmin()
+      .from('credit_balances')
+      .select('credits_remaining')
+      .eq('user_id', userId)
+      .single()
     return { success: false, remaining: bal?.credits_remaining ?? 0 }
   }
-
-  const newRemaining = bal.credits_remaining - amount
-
-  // Deduct credits
-  await getSupabaseAdmin()
-    .from('credit_balances')
-    .update({
-      credits_remaining: newRemaining,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
 
   // Log transaction
   await getSupabaseAdmin()

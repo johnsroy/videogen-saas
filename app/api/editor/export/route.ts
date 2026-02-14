@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { composeVideo } from '@/lib/ffmpeg-compose'
-import { consumeCredits, EXPORT_CREDIT_COST } from '@/lib/credits'
+import { consumeCredits, refundCredits, EXPORT_CREDIT_COST } from '@/lib/credits'
 
 export const maxDuration = 300 // 5 min timeout for video processing
 
@@ -45,17 +45,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Source video not found or has no URL' }, { status: 404 })
     }
 
-    // Check credits
-    const { data: balance } = await getSupabaseAdmin()
-      .from('credit_balances')
-      .select('credits_remaining')
-      .eq('user_id', user.id)
-      .single()
+    // Consume credits FIRST (atomic — prevents double-spend)
+    const exportId = crypto.randomUUID()
+    const creditResult = await consumeCredits({
+      userId: user.id,
+      amount: EXPORT_CREDIT_COST,
+      resourceType: 'video_export',
+      resourceId: exportId,
+      description: `Exported edited video from "${sourceVideo.title}"`,
+    })
 
-    if (!balance || balance.credits_remaining < EXPORT_CREDIT_COST) {
+    if (!creditResult.success) {
       return NextResponse.json(
         {
-          error: `Need ${EXPORT_CREDIT_COST} credits to export. You have ${balance?.credits_remaining ?? 0}.`,
+          error: `Need ${EXPORT_CREDIT_COST} credits to export. You have ${creditResult.remaining}.`,
           code: 'INSUFFICIENT_CREDITS',
         },
         { status: 403 }
@@ -79,7 +82,7 @@ export async function POST(request: Request) {
       voiceoverUrl = vo?.audio_url || undefined
     }
 
-    // Fetch AI music URL if set
+    // Fetch music URL
     let musicUrl: string | undefined
     if (project.music_ai_id) {
       const { data: track } = await getSupabaseAdmin()
@@ -89,23 +92,25 @@ export async function POST(request: Request) {
         .single()
       musicUrl = track?.audio_url || undefined
     } else if (project.music_preset_id) {
-      // Preset tracks are local files — construct full URL
+      // Preset tracks are local files in public/audio/
       const presetMap: Record<string, string> = {
-        upbeat: '/audio/upbeat.wav',
-        corporate: '/audio/corporate.wav',
-        calm: '/audio/calm.wav',
-        energetic: '/audio/energetic.wav',
+        upbeat: 'upbeat.wav',
+        corporate: 'corporate.wav',
+        calm: 'calm.wav',
+        energetic: 'energetic.wav',
       }
-      const presetPath = presetMap[project.music_preset_id]
-      if (presetPath) {
-        // For local dev, construct absolute URL
-        const origin = request.headers.get('origin') || 'http://localhost:3000'
-        musicUrl = `${origin}${presetPath}`
+      const presetFile = presetMap[project.music_preset_id]
+      if (presetFile) {
+        // Use NEXT_PUBLIC_APP_URL if available, otherwise construct from request
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL
+          || process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`
+          || `http://localhost:${process.env.PORT || 3000}`
+        musicUrl = `${appUrl}/audio/${presetFile}`
       }
     }
 
     try {
-      // Compose video
+      // Compose video with real FFmpeg binary
       const composedBuffer = await composeVideo({
         sourceVideoUrl: sourceVideo.video_url,
         voiceoverUrl,
@@ -118,7 +123,6 @@ export async function POST(request: Request) {
       })
 
       // Upload to exports bucket
-      const exportId = crypto.randomUUID()
       const storagePath = `${user.id}/${exportId}.mp4`
 
       const { error: uploadError } = await getSupabaseAdmin()
@@ -174,17 +178,16 @@ export async function POST(request: Request) {
         })
         .eq('id', project_id)
 
-      // Consume credits
-      await consumeCredits({
-        userId: user.id,
-        amount: EXPORT_CREDIT_COST,
-        resourceType: 'video_export',
-        resourceId: exportId,
-        description: `Exported edited video from "${sourceVideo.title}"`,
-      })
-
       return NextResponse.json({ video: newVideo })
     } catch (composeError) {
+      // Composition failed — refund credits
+      await refundCredits({
+        userId: user.id,
+        amount: EXPORT_CREDIT_COST,
+        resourceId: exportId,
+        reason: 'Video export failed — credits refunded',
+      }).catch(() => {}) // Don't let refund failure mask the original error
+
       // Mark project as failed
       const errMsg = composeError instanceof Error ? composeError.message : 'Composition failed'
       await getSupabaseAdmin()
