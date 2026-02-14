@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { extendVeoVideo, calculateVeoCreditCost } from '@/lib/google-veo'
 import { getEffectivePlan, canUseVeo, canUseVideoExtension } from '@/lib/plan-utils'
-import { consumeCredits } from '@/lib/credits'
+import { consumeCredits, refundCredits } from '@/lib/credits'
 
 const VALID_EXTEND_DURATIONS = [4, 6, 8]
 
@@ -66,68 +66,76 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Video has no URL to extend from' }, { status: 400 })
     }
 
-    // Check credit balance (without consuming yet)
+    // Consume credits FIRST (atomic — prevents double-spend)
     const creditsCost = calculateVeoCreditCost(extendDurationSeconds, parentVideo.veo_model ?? 'veo-3.1-generate-preview')
-    const { data: balance } = await getSupabaseAdmin()
-      .from('credit_balances')
-      .select('credits_remaining')
-      .eq('user_id', user.id)
-      .single()
+    const extensionVideoId = crypto.randomUUID()
+    const creditResult = await consumeCredits({
+      userId: user.id,
+      amount: creditsCost,
+      resourceType: 'veo_video_extend',
+      resourceId: extensionVideoId,
+      description: `Veo extend: ${parentVideo.title}`,
+    })
 
-    if (!balance || balance.credits_remaining < creditsCost) {
+    if (!creditResult.success) {
       return NextResponse.json(
         {
-          error: `Insufficient credits. Need ${creditsCost}, have ${balance?.credits_remaining ?? 0}.`,
+          error: `Insufficient credits. Need ${creditsCost}, have ${creditResult.remaining}.`,
           code: 'INSUFFICIENT_CREDITS',
         },
         { status: 403 }
       )
     }
 
-    // Call Veo extend API first (before consuming credits)
-    const result = await extendVeoVideo({
-      videoUri: parentVideo.video_url,
-      prompt: prompt.trim(),
-      extendDurationSeconds,
-    })
-
-    // Insert new video record linked to parent
-    const { data: videoRecord, error: dbError } = await getSupabaseAdmin()
-      .from('videos')
-      .insert({
-        user_id: user.id,
-        title: `${parentVideo.title} (Extended)`,
-        mode: 'extension',
-        status: 'pending',
-        provider: 'google_veo',
+    try {
+      // Call Veo extend API
+      const result = await extendVeoVideo({
+        videoUri: parentVideo.video_url,
         prompt: prompt.trim(),
-        dimension: parentVideo.dimension,
-        style: parentVideo.style,
-        credits_used: creditsCost,
-        veo_operation_name: result.operationName,
-        veo_model: parentVideo.veo_model,
-        audio_enabled: parentVideo.audio_enabled,
-        extend_count: (parentVideo.extend_count ?? 0) + 1,
-        parent_video_id: videoId,
+        extendDurationSeconds,
       })
-      .select()
-      .single()
 
-    if (dbError) {
-      console.error('DB error inserting Veo extension:', dbError)
-      return NextResponse.json({ error: 'Failed to save video record' }, { status: 500 })
+      // Insert new video record linked to parent
+      const { data: videoRecord, error: dbError } = await getSupabaseAdmin()
+        .from('videos')
+        .insert({
+          id: extensionVideoId,
+          user_id: user.id,
+          title: `${parentVideo.title} (Extended)`,
+          mode: 'extension',
+          status: 'pending',
+          provider: 'google_veo',
+          prompt: prompt.trim(),
+          dimension: parentVideo.dimension,
+          style: parentVideo.style,
+          credits_used: creditsCost,
+          veo_operation_name: result.operationName,
+          veo_model: parentVideo.veo_model,
+          audio_enabled: parentVideo.audio_enabled,
+          extend_count: (parentVideo.extend_count ?? 0) + 1,
+          parent_video_id: videoId,
+        })
+        .select()
+        .single()
+
+      if (dbError) {
+        throw new Error(`Failed to save video record: ${dbError.message}`)
+      }
+
+      return NextResponse.json({ video: videoRecord })
+    } catch (genError) {
+      // Extension failed — refund credits
+      await refundCredits({
+        userId: user.id,
+        amount: creditsCost,
+        resourceId: extensionVideoId,
+        reason: 'Veo video extension failed — credits refunded',
+      }).catch(() => {})
+
+      console.error('Veo extend error:', genError)
+      const message = genError instanceof Error ? genError.message : 'Failed to extend video'
+      return NextResponse.json({ error: message }, { status: 500 })
     }
-
-    // Consume credits AFTER successful API call + DB insert, using extension video ID
-    await consumeCredits({
-      userId: user.id,
-      amount: creditsCost,
-      resourceType: 'veo_video_extend',
-      resourceId: videoRecord.id,
-      description: `Veo extend: ${parentVideo.title}`,
-    })
-
-    return NextResponse.json({ video: videoRecord })
   } catch (error) {
     console.error('Veo extend error:', error)
     const message = error instanceof Error ? error.message : 'Failed to extend video'

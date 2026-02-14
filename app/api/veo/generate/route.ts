@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { generateVeoVideo, calculateVeoCreditCost } from '@/lib/google-veo'
 import { getEffectivePlan, canUseVeo } from '@/lib/plan-utils'
-import { consumeCredits } from '@/lib/credits'
+import { consumeCredits, refundCredits } from '@/lib/credits'
 import type { VeoModel, VeoAspectRatio, VeoDuration, VeoReferenceImage } from '@/lib/veo-types'
 
 const VALID_DURATIONS: VeoDuration[] = [4, 6, 8]
@@ -105,107 +105,115 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check credit balance (without consuming yet)
+    // Consume credits FIRST (atomic — prevents double-spend)
     const creditsCost = calculateVeoCreditCost(duration as VeoDuration, model as VeoModel)
-    const { data: balance } = await getSupabaseAdmin()
-      .from('credit_balances')
-      .select('credits_remaining')
-      .eq('user_id', user.id)
-      .single()
+    const videoId = crypto.randomUUID()
+    const creditResult = await consumeCredits({
+      userId: user.id,
+      amount: creditsCost,
+      resourceType: 'veo_video',
+      resourceId: videoId,
+      description: `Veo video: ${title.trim()}`,
+    })
 
-    if (!balance || balance.credits_remaining < creditsCost) {
+    if (!creditResult.success) {
       return NextResponse.json(
         {
-          error: `Insufficient credits. Need ${creditsCost}, have ${balance?.credits_remaining ?? 0}. Upgrade your plan for more credits.`,
+          error: `Insufficient credits. Need ${creditsCost}, have ${creditResult.remaining}. Upgrade your plan for more credits.`,
           code: 'INSUFFICIENT_CREDITS',
         },
         { status: 403 }
       )
     }
 
-    // Build reference images
-    const veoReferenceImages: VeoReferenceImage[] | undefined = referenceImages?.map(
-      (img: { base64: string; mimeType: string; label?: string }) => ({
-        base64: img.base64,
-        mimeType: img.mimeType,
-        label: img.label,
-      })
-    )
+    try {
+      // Build reference images
+      const veoReferenceImages: VeoReferenceImage[] | undefined = referenceImages?.map(
+        (img: { base64: string; mimeType: string; label?: string }) => ({
+          base64: img.base64,
+          mimeType: img.mimeType,
+          label: img.label,
+        })
+      )
 
-    const veoStartFrame: VeoReferenceImage | undefined = startFrame
-      ? { base64: startFrame.base64, mimeType: startFrame.mimeType }
-      : undefined
+      const veoStartFrame: VeoReferenceImage | undefined = startFrame
+        ? { base64: startFrame.base64, mimeType: startFrame.mimeType }
+        : undefined
 
-    const veoEndFrame: VeoReferenceImage | undefined = endFrame
-      ? { base64: endFrame.base64, mimeType: endFrame.mimeType }
-      : undefined
+      const veoEndFrame: VeoReferenceImage | undefined = endFrame
+        ? { base64: endFrame.base64, mimeType: endFrame.mimeType }
+        : undefined
 
-    // Call Veo API first (before consuming credits)
-    const result = await generateVeoVideo({
-      prompt: prompt.trim(),
-      referenceImages: veoReferenceImages,
-      startFrame: veoStartFrame,
-      endFrame: veoEndFrame,
-      aspectRatio: aspectRatio as VeoAspectRatio,
-      duration: duration as VeoDuration,
-      generateAudio,
-      negativePrompt: negativePrompt?.trim() || undefined,
-      model: model as VeoModel,
-    })
-
-    // Determine dimension string from aspect ratio
-    const dimension = aspectRatio === '9:16' ? '720x1280' : '1280x720'
-
-    // Insert video record
-    const { data: videoRecord, error: dbError } = await getSupabaseAdmin()
-      .from('videos')
-      .insert({
-        user_id: user.id,
-        heygen_video_id: null,
-        title: title.trim(),
-        mode,
-        status: 'pending',
-        provider: 'google_veo',
-        script: null,
+      // Call Veo API
+      const result = await generateVeoVideo({
         prompt: prompt.trim(),
-        dimension,
-        style: style ?? null,
-        emotion: emotion ?? null,
-        credits_used: creditsCost,
-        veo_operation_name: result.operationName,
-        veo_model: model,
-        audio_enabled: generateAudio,
+        referenceImages: veoReferenceImages,
+        startFrame: veoStartFrame,
+        endFrame: veoEndFrame,
+        aspectRatio: aspectRatio as VeoAspectRatio,
+        duration: duration as VeoDuration,
+        generateAudio,
+        negativePrompt: negativePrompt?.trim() || undefined,
+        model: model as VeoModel,
       })
-      .select()
-      .single()
 
-    if (dbError) {
-      console.error('DB error inserting Veo video:', dbError)
-      return NextResponse.json({ error: 'Failed to save video record' }, { status: 500 })
+      // Determine dimension string from aspect ratio
+      const dimension = aspectRatio === '9:16' ? '720x1280' : '1280x720'
+
+      // Insert video record
+      const { data: videoRecord, error: dbError } = await getSupabaseAdmin()
+        .from('videos')
+        .insert({
+          id: videoId,
+          user_id: user.id,
+          heygen_video_id: null,
+          title: title.trim(),
+          mode,
+          status: 'pending',
+          provider: 'google_veo',
+          script: null,
+          prompt: prompt.trim(),
+          dimension,
+          style: style ?? null,
+          emotion: emotion ?? null,
+          credits_used: creditsCost,
+          veo_operation_name: result.operationName,
+          veo_model: model,
+          audio_enabled: generateAudio,
+        })
+        .select()
+        .single()
+
+      if (dbError) {
+        throw new Error(`Failed to save video record: ${dbError.message}`)
+      }
+
+      return NextResponse.json({ video: videoRecord })
+    } catch (genError) {
+      // Generation failed — refund credits
+      await refundCredits({
+        userId: user.id,
+        amount: creditsCost,
+        resourceId: videoId,
+        reason: 'Veo video generation failed — credits refunded',
+      }).catch(() => {})
+
+      console.error('Veo video generate error:', genError)
+      const raw = genError instanceof Error ? genError.message : String(genError)
+
+      // Detect Google API quota / rate-limit errors and return a friendly message
+      if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429') || raw.includes('quota')) {
+        return NextResponse.json(
+          { error: 'Google Veo API quota exceeded. Please wait a few minutes and try again, or check your Google AI billing at ai.google.dev.' },
+          { status: 429 }
+        )
+      }
+
+      return NextResponse.json({ error: raw || 'Failed to generate video' }, { status: 500 })
     }
-
-    // Consume credits AFTER successful API call + DB insert, using actual video ID
-    await consumeCredits({
-      userId: user.id,
-      amount: creditsCost,
-      resourceType: 'veo_video',
-      resourceId: videoRecord.id,
-      description: `Veo video: ${title.trim()}`,
-    })
-
-    return NextResponse.json({ video: videoRecord })
   } catch (error) {
     console.error('Veo video generate error:', error)
     const raw = error instanceof Error ? error.message : String(error)
-
-    // Detect Google API quota / rate-limit errors and return a friendly message
-    if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429') || raw.includes('quota')) {
-      return NextResponse.json(
-        { error: 'Google Veo API quota exceeded. Please wait a few minutes and try again, or check your Google AI billing at ai.google.dev.' },
-        { status: 429 }
-      )
-    }
-
     return NextResponse.json({ error: raw || 'Failed to generate video' }, { status: 500 })
   }
 }

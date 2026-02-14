@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { chatCompletion } from '@/lib/anthropic'
 import { SCRIPT_TRANSLATOR_SYSTEM, buildTranslatePrompt } from '@/lib/ai-prompts'
-import { consumeCredits } from '@/lib/credits'
+import { consumeCredits, refundCredits } from '@/lib/credits'
 
 const FREE_LANGUAGES = 1
 const CONCURRENCY = 5
@@ -58,20 +58,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Too many target languages' }, { status: 400 })
     }
 
-    // Calculate credit cost: first 5 are free, each additional costs 1 credit
+    // Calculate credit cost: first language is free, each additional costs 1 credit
     const creditCost = Math.max(0, target_languages.length - FREE_LANGUAGES)
+    const translateResourceId = `translate-${Date.now()}`
 
+    // Consume credits FIRST if any cost (atomic — prevents double-spend)
     if (creditCost > 0) {
-      const { data: balance } = await getSupabaseAdmin()
-        .from('credit_balances')
-        .select('credits_remaining')
-        .eq('user_id', user.id)
-        .single()
+      const creditResult = await consumeCredits({
+        userId: user.id,
+        amount: creditCost,
+        resourceType: 'batch_translation',
+        resourceId: translateResourceId,
+        description: `Batch translation to ${target_languages.length} languages (${creditCost} credits)`,
+      })
 
-      if (!balance || balance.credits_remaining < creditCost) {
+      if (!creditResult.success) {
         return NextResponse.json(
           {
-            error: `Need ${creditCost} credits for ${target_languages.length} languages (first ${FREE_LANGUAGES} are free). You have ${balance?.credits_remaining ?? 0} credits.`,
+            error: `Need ${creditCost} credits for ${target_languages.length} languages (first ${FREE_LANGUAGES} are free). You have ${creditResult.remaining} credits.`,
             code: 'INSUFFICIENT_CREDITS',
           },
           { status: 403 }
@@ -115,17 +119,33 @@ export async function POST(request: Request) {
 
     const successCount = Object.keys(translations).length
 
-    // Consume credits for languages beyond free tier
-    if (creditCost > 0 && successCount > FREE_LANGUAGES) {
-      const actualCredits = Math.min(creditCost, successCount - FREE_LANGUAGES)
-      if (actualCredits > 0) {
-        await consumeCredits({
+    // If all translations failed and we consumed credits, refund them
+    if (creditCost > 0 && successCount === 0) {
+      await refundCredits({
+        userId: user.id,
+        amount: creditCost,
+        resourceId: translateResourceId,
+        reason: 'All translations failed — credits refunded',
+      }).catch(() => {})
+    } else if (creditCost > 0 && successCount <= FREE_LANGUAGES) {
+      // Only free-tier translations succeeded, refund all paid credits
+      await refundCredits({
+        userId: user.id,
+        amount: creditCost,
+        resourceId: translateResourceId,
+        reason: 'Only free-tier translations succeeded — credits refunded',
+      }).catch(() => {})
+    } else if (creditCost > 0 && successCount < target_languages.length) {
+      // Some translations failed — refund the difference
+      const actualCost = Math.max(0, successCount - FREE_LANGUAGES)
+      const refundAmount = creditCost - actualCost
+      if (refundAmount > 0) {
+        await refundCredits({
           userId: user.id,
-          amount: actualCredits,
-          resourceType: 'batch_translation',
-          resourceId: `translate-${Date.now()}`,
-          description: `Batch translation to ${successCount} languages (${actualCredits} credits)`,
-        })
+          amount: refundAmount,
+          resourceId: translateResourceId,
+          reason: `${target_languages.length - successCount} translations failed — partial refund`,
+        }).catch(() => {})
       }
     }
 
@@ -139,10 +159,12 @@ export async function POST(request: Request) {
         output_text: `Translated to: ${Object.keys(translations).join(', ')}`,
       })
 
+    const actualCreditsUsed = creditCost > 0 ? Math.min(creditCost, Math.max(0, successCount - FREE_LANGUAGES)) : 0
+
     return NextResponse.json({
       translations,
       errors: Object.keys(translationErrors).length > 0 ? translationErrors : undefined,
-      credits_used: creditCost > 0 ? Math.min(creditCost, Math.max(0, successCount - FREE_LANGUAGES)) : 0,
+      credits_used: actualCreditsUsed,
     })
   } catch (error) {
     console.error('Batch translate error:', error)

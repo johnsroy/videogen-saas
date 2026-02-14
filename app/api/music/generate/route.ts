@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { generateMusic } from '@/lib/replicate-music'
-import { consumeCredits, AI_MUSIC_CREDIT_COST } from '@/lib/credits'
+import { consumeCredits, refundCredits, AI_MUSIC_CREDIT_COST } from '@/lib/credits'
 
 const MAX_PROMPT_LENGTH = 500
 const MIN_DURATION = 5
@@ -32,76 +32,9 @@ export async function POST(request: Request) {
       ? Math.min(MAX_DURATION, Math.max(MIN_DURATION, duration_seconds))
       : 15
 
-    // Check credit balance
-    const { data: balance } = await getSupabaseAdmin()
-      .from('credit_balances')
-      .select('credits_remaining')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!balance || balance.credits_remaining < AI_MUSIC_CREDIT_COST) {
-      return NextResponse.json(
-        {
-          error: `Need ${AI_MUSIC_CREDIT_COST} credit for music generation. You have ${balance?.credits_remaining ?? 0} credits.`,
-          code: 'INSUFFICIENT_CREDITS',
-        },
-        { status: 403 }
-      )
-    }
-
-    // Generate music via Replicate MusicGen
-    const audioUrl = await generateMusic({
-      prompt: prompt.trim(),
-      duration_seconds: duration,
-    })
-
-    // Download the audio from Replicate and upload to our storage
-    const audioRes = await fetch(audioUrl)
-    if (!audioRes.ok) throw new Error('Failed to download generated audio')
-    const audioBuffer = await audioRes.arrayBuffer()
-
+    // Consume credits FIRST (atomic — prevents double-spend)
     const trackId = crypto.randomUUID()
-    const storagePath = `${user.id}/${trackId}.mp3`
-
-    const { error: uploadError } = await getSupabaseAdmin()
-      .storage
-      .from('music')
-      .upload(storagePath, Buffer.from(audioBuffer), {
-        contentType: 'audio/mpeg',
-        upsert: false,
-      })
-
-    if (uploadError) {
-      console.error('Music storage upload error:', uploadError)
-      return NextResponse.json({ error: 'Failed to store music' }, { status: 500 })
-    }
-
-    const { data: urlData } = getSupabaseAdmin()
-      .storage
-      .from('music')
-      .getPublicUrl(storagePath)
-
-    // Insert record
-    const { data: track, error: insertError } = await getSupabaseAdmin()
-      .from('ai_music_tracks')
-      .insert({
-        id: trackId,
-        user_id: user.id,
-        prompt: prompt.trim(),
-        duration_seconds: duration,
-        audio_url: urlData.publicUrl,
-        credits_used: AI_MUSIC_CREDIT_COST,
-      })
-      .select()
-      .single()
-
-    if (insertError) {
-      console.error('Music DB insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to save music record' }, { status: 500 })
-    }
-
-    // Consume credits
-    await consumeCredits({
+    const creditResult = await consumeCredits({
       userId: user.id,
       amount: AI_MUSIC_CREDIT_COST,
       resourceType: 'ai_music',
@@ -109,7 +42,79 @@ export async function POST(request: Request) {
       description: `AI music generation: "${prompt.trim().slice(0, 50)}"`,
     })
 
-    return NextResponse.json({ track })
+    if (!creditResult.success) {
+      return NextResponse.json(
+        {
+          error: `Need ${AI_MUSIC_CREDIT_COST} credit for music generation. You have ${creditResult.remaining}.`,
+          code: 'INSUFFICIENT_CREDITS',
+        },
+        { status: 403 }
+      )
+    }
+
+    try {
+      // Generate music via Replicate MusicGen
+      const audioUrl = await generateMusic({
+        prompt: prompt.trim(),
+        duration_seconds: duration,
+      })
+
+      // Download the audio from Replicate and upload to our storage
+      const audioRes = await fetch(audioUrl)
+      if (!audioRes.ok) throw new Error('Failed to download generated audio')
+      const audioBuffer = await audioRes.arrayBuffer()
+
+      const storagePath = `${user.id}/${trackId}.mp3`
+
+      const { error: uploadError } = await getSupabaseAdmin()
+        .storage
+        .from('music')
+        .upload(storagePath, Buffer.from(audioBuffer), {
+          contentType: 'audio/mpeg',
+          upsert: false,
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to store music: ${uploadError.message}`)
+      }
+
+      const { data: urlData } = getSupabaseAdmin()
+        .storage
+        .from('music')
+        .getPublicUrl(storagePath)
+
+      // Insert record
+      const { data: track, error: insertError } = await getSupabaseAdmin()
+        .from('ai_music_tracks')
+        .insert({
+          id: trackId,
+          user_id: user.id,
+          prompt: prompt.trim(),
+          duration_seconds: duration,
+          audio_url: urlData.publicUrl,
+          credits_used: AI_MUSIC_CREDIT_COST,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        throw new Error(`Failed to save music record: ${insertError.message}`)
+      }
+
+      return NextResponse.json({ track })
+    } catch (genError) {
+      // Generation failed — refund credits
+      await refundCredits({
+        userId: user.id,
+        amount: AI_MUSIC_CREDIT_COST,
+        resourceId: trackId,
+        reason: 'AI music generation failed — credits refunded',
+      }).catch(() => {}) // Don't let refund failure mask the original error
+
+      console.error('Music generation error:', genError)
+      const message = genError instanceof Error ? genError.message : 'Music generation failed'
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
   } catch (error) {
     console.error('Music generate error:', error)
     const message = error instanceof Error ? error.message : 'Failed to generate music'

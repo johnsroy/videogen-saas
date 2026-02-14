@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { generateImage } from '@/lib/nanobanana-pro'
 import { getEffectivePlan } from '@/lib/plan-utils'
-import { consumeCredits, calculateImageCreditCost } from '@/lib/credits'
+import { consumeCredits, refundCredits, calculateImageCreditCost } from '@/lib/credits'
 import type { NBResolution, NBAspectRatio, NBGenerationType } from '@/lib/nanobanana-types'
 
 export async function POST(request: Request) {
@@ -42,13 +42,14 @@ export async function POST(request: Request) {
 
     const planId = getEffectivePlan(subscription?.plan, subscription?.status)
 
-    // Calculate and check credits
+    // Consume credits FIRST (atomic — prevents double-spend)
     const cost = calculateImageCreditCost(resolution) * Math.min(num_images ?? 1, 4)
+    const imageTaskId = crypto.randomUUID()
     const creditResult = await consumeCredits({
       userId: user.id,
       amount: cost,
       resourceType: 'nb_image',
-      resourceId: '',
+      resourceId: imageTaskId,
       description: `Image generation (${resolution})`,
     })
 
@@ -59,37 +60,51 @@ export async function POST(request: Request) {
       )
     }
 
-    // Call NanoBanana Pro API
-    const result = await generateImage({
-      prompt: prompt.trim(),
-      generationType: generation_type as NBGenerationType,
-      aspectRatio: aspect_ratio as NBAspectRatio,
-      resolution: resolution as NBResolution,
-      numImages: Math.min(num_images, 4),
-      imageUrls: image_urls,
-    })
-
-    // Record task in DB
-    const { data: task, error: dbError } = await getSupabaseAdmin()
-      .from('nb_image_tasks')
-      .insert({
-        user_id: user.id,
-        task_id: result.taskId,
+    try {
+      // Call NanoBanana Pro API
+      const result = await generateImage({
         prompt: prompt.trim(),
-        generation_type,
-        status: 'pending',
-        resolution,
-        credits_used: cost,
+        generationType: generation_type as NBGenerationType,
+        aspectRatio: aspect_ratio as NBAspectRatio,
+        resolution: resolution as NBResolution,
+        numImages: Math.min(num_images, 4),
+        imageUrls: image_urls,
       })
-      .select()
-      .single()
 
-    if (dbError) {
-      console.error('DB error inserting image task:', dbError)
-      return NextResponse.json({ error: 'Failed to save task' }, { status: 500 })
+      // Record task in DB
+      const { data: task, error: dbError } = await getSupabaseAdmin()
+        .from('nb_image_tasks')
+        .insert({
+          id: imageTaskId,
+          user_id: user.id,
+          task_id: result.taskId,
+          prompt: prompt.trim(),
+          generation_type,
+          status: 'pending',
+          resolution,
+          credits_used: cost,
+        })
+        .select()
+        .single()
+
+      if (dbError) {
+        throw new Error(`Failed to save task: ${dbError.message}`)
+      }
+
+      return NextResponse.json({ task })
+    } catch (genError) {
+      // Generation failed — refund credits
+      await refundCredits({
+        userId: user.id,
+        amount: cost,
+        resourceId: imageTaskId,
+        reason: 'Image generation failed — credits refunded',
+      }).catch(() => {})
+
+      console.error('Image generation error:', genError)
+      const message = genError instanceof Error ? genError.message : 'Image generation failed'
+      return NextResponse.json({ error: message }, { status: 500 })
     }
-
-    return NextResponse.json({ task })
   } catch (error) {
     console.error('NanoBanana image generate error:', error)
     const message = error instanceof Error ? error.message : 'Failed to generate image'

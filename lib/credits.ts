@@ -148,14 +148,15 @@ export async function grantSignupBonus(userId: string): Promise<void> {
   }
 }
 
-/** Refund credits (for cancelled/timed-out generations). */
+/** Refund credits (for cancelled/timed-out/failed generations). */
 export async function refundCredits(params: {
   userId: string
   amount: number
   resourceId: string
   reason: string
+  resourceType?: string
 }): Promise<{ success: boolean; remaining: number }> {
-  const { userId, amount, resourceId, reason } = params
+  const { userId, amount, resourceId, reason, resourceType = 'refund' } = params
 
   const { data: bal } = await getSupabaseAdmin()
     .from('credit_balances')
@@ -180,7 +181,7 @@ export async function refundCredits(params: {
       amount,
       balance_after: newRemaining,
       type: 'refund',
-      resource_type: 'veo_video',
+      resource_type: resourceType,
       resource_id: resourceId,
       description: reason,
     })
