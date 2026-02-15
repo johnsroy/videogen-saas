@@ -1,16 +1,18 @@
+'use client'
+
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { resetPassword } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Suspense } from 'react'
 
-export default async function ForgotPasswordPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>
-}) {
-  const { error, success } = await searchParams
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams()
+  const error = searchParams.get('error')
+  const success = searchParams.get('success')
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -50,5 +52,19 @@ export default async function ForgotPasswordPage({
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md p-8 text-center">
+          <div className="h-6 w-6 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </Card>
+      </div>
+    }>
+      <ForgotPasswordForm />
+    </Suspense>
   )
 }
