@@ -22,7 +22,7 @@ interface CustomAvatarDialogProps {
 
 export function CustomAvatarDialog({ open, onOpenChange, onAvatarCreated }: CustomAvatarDialogProps) {
   const [name, setName] = useState('')
-  const [photo, setPhoto] = useState<{ base64: string; mimeType: string; previewUrl: string } | null>(null)
+  const [photo, setPhoto] = useState<{ file: File; previewUrl: string } | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,19 +40,11 @@ export function CustomAvatarDialog({ open, onOpenChange, onAvatarCreated }: Cust
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      // Extract base64 without data URL prefix
-      const base64 = result.split(',')[1]
-      setPhoto({
-        base64,
-        mimeType: file.type,
-        previewUrl: result,
-      })
-      setError(null)
-    }
-    reader.readAsDataURL(file)
+    setPhoto({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    })
+    setError(null)
   }, [])
 
   async function handleCreate() {
@@ -61,16 +53,13 @@ export function CustomAvatarDialog({ open, onOpenChange, onAvatarCreated }: Cust
     setError(null)
 
     try {
+      const formData = new FormData()
+      formData.append('name', name.trim())
+      formData.append('photo', photo.file)
+
       const res = await fetch('/api/heygen/create-avatar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          photo: {
-            base64: photo.base64,
-            mimeType: photo.mimeType,
-          },
-        }),
+        body: formData,
       })
       const data = await res.json()
       if (!res.ok) {
