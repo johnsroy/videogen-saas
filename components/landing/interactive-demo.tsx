@@ -502,7 +502,13 @@ function StudioTab({
         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Output Preview
         </label>
-        <div className="mt-2 relative rounded-xl overflow-hidden bg-black aspect-video">
+        <div
+          className="mt-2 relative rounded-xl overflow-hidden bg-black mx-auto transition-all duration-300"
+          style={{
+            aspectRatio: selectedRatio === '9:16' ? '9/16' : '16/9',
+            maxHeight: selectedRatio === '9:16' ? '400px' : undefined,
+          }}
+        >
           <video
             key={selectedStyle}
             src={STUDIO_STYLE_VIDEOS[selectedStyle] ?? STUDIO_STYLE_VIDEOS['Cinematic']}
