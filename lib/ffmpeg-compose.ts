@@ -27,7 +27,7 @@ export interface ComposeParams {
   originalAudioVolume?: number  // 0-100
 }
 
-async function downloadToFile(url: string, filePath: string): Promise<void> {
+export async function downloadToFile(url: string, filePath: string): Promise<void> {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Failed to download: ${url} (${res.status})`)
   const buffer = Buffer.from(await res.arrayBuffer())
@@ -144,6 +144,128 @@ export async function composeVideo(params: ComposeParams): Promise<Buffer> {
     return await readFile(outputFile)
   } finally {
     // Cleanup entire work directory
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/**
+ * Concatenate multiple video clips and optionally upscale to 4K.
+ * Downloads all clips, concatenates with FFmpeg, and returns the composed buffer.
+ */
+export async function concatenateVideos(
+  videoUrls: string[],
+  options?: { upscale4K?: boolean; aspectRatio?: '16:9' | '9:16' }
+): Promise<Buffer> {
+  if (videoUrls.length === 0) throw new Error('No video URLs provided')
+  if (videoUrls.length === 1 && !options?.upscale4K) {
+    // Single video, no upscale — just download and return
+    const res = await fetch(videoUrls[0])
+    if (!res.ok) throw new Error(`Failed to download video: ${res.status}`)
+    return Buffer.from(await res.arrayBuffer())
+  }
+
+  const ffmpegPath = getFfmpegPath()
+  const workDir = join(tmpdir(), `videogen-concat-${randomUUID()}`)
+  await mkdir(workDir, { recursive: true })
+
+  const outputFile = join(workDir, 'output.mp4')
+
+  try {
+    // Download all clips in parallel
+    const clipPaths: string[] = []
+    await Promise.all(
+      videoUrls.map(async (url, i) => {
+        const clipPath = join(workDir, `clip_${String(i).padStart(3, '0')}.mp4`)
+        await downloadToFile(url, clipPath)
+        clipPaths[i] = clipPath
+      })
+    )
+
+    // Write concat list file
+    const concatListPath = join(workDir, 'concat.txt')
+    const concatContent = clipPaths.map((p) => `file '${p}'`).join('\n')
+    await writeFile(concatListPath, concatContent)
+
+    if (options?.upscale4K) {
+      // Concatenate + upscale to 4K in a single pass
+      const isPortrait = options.aspectRatio === '9:16'
+      const scaleFilter = isPortrait
+        ? 'scale=2160:3840:flags=lanczos'
+        : 'scale=3840:2160:flags=lanczos'
+
+      const args = [
+        '-f', 'concat', '-safe', '0', '-i', concatListPath,
+        '-vf', scaleFilter,
+        '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
+        '-c:a', 'aac', '-b:a', '192k',
+        '-movflags', '+faststart',
+        '-y', outputFile,
+      ]
+
+      await execFileAsync(ffmpegPath, args, {
+        timeout: 600_000, // 10 minutes for 4K encoding
+        maxBuffer: 10 * 1024 * 1024,
+      })
+    } else {
+      // Fast lossless concat (same codec)
+      const args = [
+        '-f', 'concat', '-safe', '0', '-i', concatListPath,
+        '-c', 'copy',
+        '-movflags', '+faststart',
+        '-y', outputFile,
+      ]
+
+      await execFileAsync(ffmpegPath, args, {
+        timeout: 300_000,
+        maxBuffer: 10 * 1024 * 1024,
+      })
+    }
+
+    return await readFile(outputFile)
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/**
+ * Upscale a single video to 4K resolution.
+ * Downloads the video, upscales with FFmpeg lanczos, returns the buffer.
+ */
+export async function upscaleVideoTo4K(
+  videoUrl: string,
+  aspectRatio: '16:9' | '9:16' = '16:9'
+): Promise<Buffer> {
+  const ffmpegPath = getFfmpegPath()
+  const workDir = join(tmpdir(), `videogen-upscale-${randomUUID()}`)
+  await mkdir(workDir, { recursive: true })
+
+  const inputFile = join(workDir, 'input.mp4')
+  const outputFile = join(workDir, 'output_4k.mp4')
+
+  try {
+    await downloadToFile(videoUrl, inputFile)
+
+    const isPortrait = aspectRatio === '9:16'
+    const scaleFilter = isPortrait
+      ? 'scale=2160:3840:flags=lanczos'
+      : 'scale=3840:2160:flags=lanczos'
+
+    const args = [
+      '-i', inputFile,
+      '-vf', scaleFilter,
+      '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
+      '-c:a', 'copy',
+      '-movflags', '+faststart',
+      '-y', outputFile,
+    ]
+
+    await execFileAsync(ffmpegPath, args, {
+      timeout: 600_000,
+      maxBuffer: 10 * 1024 * 1024,
+    })
+
+    return await readFile(outputFile)
+  } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
 }

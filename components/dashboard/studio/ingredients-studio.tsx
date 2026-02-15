@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ImageUploadZone, type UploadedImage } from './image-upload-zone'
+import { VideoCreatedToast } from './video-created-toast'
 import { Beaker, Loader2, Sparkles, ArrowRight } from 'lucide-react'
 import type { VeoModel, VeoAspectRatio, VeoDuration } from '@/lib/veo-types'
 
@@ -38,6 +39,9 @@ export function IngredientsStudio({
   const [model, setModel] = useState<VeoModel>('veo-3.1-fast-generate-preview')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [toastTitle, setToastTitle] = useState('')
+  const [showToast, setShowToast] = useState(false)
+  const dismissToast = useCallback(() => setShowToast(false), [])
 
   async function handleGenerate() {
     if (!title.trim() || !prompt.trim() || images.length === 0) return
@@ -74,6 +78,8 @@ export function IngredientsStudio({
         return
       }
       onVideoCreated(data.video)
+      setToastTitle(title.trim())
+      setShowToast(true)
       setTitle('')
       setPrompt('')
       setImages([])
@@ -215,6 +221,7 @@ export function IngredientsStudio({
           )}
         </Button>
       </CardContent>
+      <VideoCreatedToast visible={showToast} title={toastTitle} onDismiss={dismissToast} />
     </Card>
   )
 }

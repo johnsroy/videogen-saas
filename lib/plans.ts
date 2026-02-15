@@ -215,6 +215,29 @@ export const CREDIT_PACKS: CreditPack[] = [
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_500_PRICE_ID ?? '',
     badge: 'Most Popular',
   },
+  {
+    id: 'pack_1000',
+    credits: 1000,
+    price: 1000,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_1000_PRICE_ID ?? '',
+    badge: 'Best Value',
+  },
+  {
+    id: 'pack_2500',
+    credits: 2500,
+    price: 2500,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_2500_PRICE_ID ?? '',
+  },
+  {
+    id: 'pack_5000',
+    credits: 5000,
+    price: 5000,
+    perCredit: 1.00,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_CREDIT_PACK_5000_PRICE_ID ?? '',
+    badge: 'Enterprise',
+  },
 ]
 
 /** Look up a credit pack by its Stripe price ID */

@@ -13,6 +13,7 @@ import { CaptionOverlay } from './caption-overlay'
 import { RemixButton } from './remix-button'
 import { BackgroundMusicMixer } from './background-music-mixer'
 import { ShareButton } from './analytics/share-button'
+import { SocialCaptions } from './social-captions'
 import type { VideoRecord } from '@/lib/heygen-types'
 
 interface VideoPlayerDialogProps {
@@ -88,6 +89,13 @@ export function VideoPlayerDialog({ video, open, onOpenChange }: VideoPlayerDial
             />
             <BackgroundMusicMixer videoElement={videoRef.current} creditsRemaining={0} />
           </div>
+
+          {/* AI Social Captions */}
+          {video.status === 'completed' && (
+            <div className="border-t pt-3">
+              <SocialCaptions video={video} />
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

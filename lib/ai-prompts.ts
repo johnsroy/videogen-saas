@@ -324,6 +324,40 @@ export function buildIngredientsPrompt(imageDescriptions: string[], userPrompt: 
   return `Reference images:\n${imageList}\n\nUser's direction: ${userPrompt}\n\nWrite a video generation prompt that combines these images into a compelling video.`
 }
 
+// --- Social Caption Generator prompts ---
+
+export const SOCIAL_CAPTION_SYSTEM = `You are a social media expert who writes viral video captions. Given a video's title and script/prompt, generate optimized captions for different platforms.
+
+Rules:
+- Each caption should be platform-optimized (length, tone, hashtag count)
+- Include relevant emoji naturally (not excessively)
+- Include trending and niche hashtags
+- Write a compelling hook in the first line (people see this before expanding)
+- Output ONLY valid JSON, no markdown, no code fences
+
+Response format:
+{"instagram": "...", "tiktok": "...", "linkedin": "...", "twitter": "..."}`
+
+export function buildSocialCaptionPrompt(params: {
+  title: string
+  script?: string
+  prompt?: string
+}): string {
+  let text = `Generate social media captions for a video titled: "${params.title}"`
+  if (params.script) {
+    text += `\n\nVideo script: ${params.script.slice(0, 1000)}`
+  }
+  if (params.prompt) {
+    text += `\n\nVideo prompt/description: ${params.prompt.slice(0, 1000)}`
+  }
+  text += `\n\nPlatform guidelines:
+- Instagram: 150-200 chars + 5-10 hashtags
+- TikTok: 50-100 chars + 3-5 trending hashtags
+- LinkedIn: Professional tone, 100-200 chars, 3 hashtags
+- Twitter/X: Under 280 chars total, 2-3 hashtags`
+  return text
+}
+
 // --- Analytics Insights prompts ---
 
 export const ANALYTICS_INSIGHTS_SYSTEM = `You are an analytics expert for a video creation platform. Analyze the user's video creation and performance data and generate exactly 4 actionable insights.

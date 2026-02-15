@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { CreditCard } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -27,11 +28,13 @@ export default async function DashboardPage() {
     { count: videosThisMonth },
     { count: aiUsageThisMonth },
     { data: recentVideos },
+    { data: creditBalance },
   ] = await Promise.all([
     supabase.from('subscriptions').select('*').eq('user_id', user.id).single(),
     supabase.from('videos').select('*', { count: 'exact', head: true }).eq('user_id', user.id).neq('status', 'failed').gte('created_at', firstDayOfMonth),
     supabase.from('script_enhancements').select('*', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', firstDayOfMonth),
     supabase.from('videos').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
+    getSupabaseAdmin().from('credit_balances').select('credits_remaining').eq('user_id', user.id).single(),
   ])
 
   const plan = subscription?.plan ?? 'free'
@@ -73,9 +76,11 @@ export default async function DashboardPage() {
               <span
                 className={cn(
                   'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                  isProPlan
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-muted text-muted-foreground'
+                  planId === 'enterprise'
+                    ? 'bg-gradient-to-r from-violet-600 to-amber-500 text-white shadow-sm'
+                    : isProPlan
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-muted text-muted-foreground'
                 )}
               >
                 {getPlanDisplayName(planId)}
@@ -119,6 +124,7 @@ export default async function DashboardPage() {
             planId={planId}
             videosThisMonth={videosThisMonth ?? 0}
             aiUsageThisMonth={aiUsageThisMonth ?? 0}
+            creditsRemaining={creditBalance?.credits_remaining ?? 0}
           />
         </div>
       </div>

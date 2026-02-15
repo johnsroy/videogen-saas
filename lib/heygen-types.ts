@@ -21,7 +21,7 @@ export interface VideoRecord {
   user_id: string
   heygen_video_id: string | null
   title: string
-  mode: 'avatar' | 'prompt' | 'ugc' | 'ingredients' | 'shot_design' | 'extension'
+  mode: 'avatar' | 'prompt' | 'ugc' | 'ingredients' | 'shot_design' | 'extension' | 'template' | 'template_multi'
   status: 'pending' | 'processing' | 'completed' | 'failed'
   avatar_id: string | null
   voice_id: string | null

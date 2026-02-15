@@ -64,6 +64,29 @@ export async function generateVideo(params: {
   return { video_id: data.data.video_id }
 }
 
+export async function createPhotoAvatar(params: {
+  name: string
+  photoBase64: string
+  mimeType: string
+}): Promise<HeyGenAvatar> {
+  const data = await heygenFetch<{ data: { avatar_id: string } }>('/v2/photo_avatar', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: params.name,
+      image: {
+        type: 'base64',
+        data: params.photoBase64,
+        mime_type: params.mimeType,
+      },
+    }),
+  })
+  return {
+    avatar_id: data.data.avatar_id,
+    avatar_name: params.name,
+    preview_image_url: '',
+  }
+}
+
 export async function getVideoStatus(videoId: string): Promise<{
   status: string
   video_url?: string

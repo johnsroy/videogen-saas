@@ -100,7 +100,9 @@ export function UserNav({ user, plan }: UserNavProps) {
               <DropdownMenuLabel className="font-normal">
                 <p className="text-sm font-medium">{user.email}</p>
                 {plan && plan !== 'free' && (
-                  <p className="text-xs text-primary capitalize">{plan} Plan</p>
+                  <p className={`text-xs capitalize ${plan === 'enterprise' ? 'font-semibold bg-gradient-to-r from-violet-600 to-amber-500 bg-clip-text text-transparent' : 'text-primary'}`}>
+                    {plan} Plan
+                  </p>
                 )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

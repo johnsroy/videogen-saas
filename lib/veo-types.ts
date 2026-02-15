@@ -3,6 +3,9 @@
 export type VeoModel = 'veo-3.1-generate-preview' | 'veo-3.1-fast-generate-preview'
 export type VeoAspectRatio = '16:9' | '9:16'
 export type VeoDuration = 4 | 6 | 8
+/** Extended durations for multi-segment generation (user-facing).
+ * Durations > 8s are automatically split into multiple 8s clips. */
+export type ExtendedDuration = 4 | 6 | 8 | 15 | 30 | 60 | 120
 export type VeoResolution = '720p' | '1080p'
 
 export interface VeoReferenceImage {
@@ -56,4 +59,65 @@ export interface VeoOperationStatus {
   error?: string
   /** Metadata about the operation */
   metadata?: Record<string, unknown>
+}
+
+// ── Shot Designer Template Marketplace types ──
+
+export type TemplateCategory =
+  | 'product-showcase'
+  | 'lifestyle'
+  | 'fashion-beauty'
+  | 'food-beverage'
+  | 'tech-gadgets'
+  | 'travel-adventure'
+  | 'business-corporate'
+  | 'social-media'
+  | 'ugc-authentic'
+  | 'seasonal'
+
+/** How the user's product image is used in Veo generation */
+export type TemplateImageMode = 'reference' | 'start_frame'
+
+export type TemplateDurationTier = 'short' | 'medium' | 'long' | 'xlarge'
+
+export interface TemplateSegment {
+  promptTemplate: string
+  duration: VeoDuration
+  cameraMovement?: string
+  imageMode: TemplateImageMode
+  /** Label for progress tracking (e.g., "Intro", "Feature 1", "CTA") */
+  label: string
+}
+
+export interface ShotTemplate {
+  id: string
+  name: string
+  description: string
+  category: TemplateCategory
+  tags: string[]
+  /** Prompt template with {product} and {product_description} placeholders */
+  promptTemplate: string
+  cameraMovement: string
+  imageMode: TemplateImageMode
+  suggestedDuration: VeoDuration
+  suggestedAspectRatio: VeoAspectRatio
+  durationTier: TemplateDurationTier
+  /** Total duration in seconds (for multi-segment, sum of all segments) */
+  totalDurationSeconds: number
+  /** Segments for multi-segment (long/xlarge) templates */
+  segments?: TemplateSegment[]
+  gradientColors: [string, string]
+  isNew?: boolean
+  isPopular?: boolean
+}
+
+export interface ProductInput {
+  name: string
+  description?: string
+  images: Array<{
+    base64: string
+    mimeType: string
+    name: string
+    previewUrl: string
+  }>
 }

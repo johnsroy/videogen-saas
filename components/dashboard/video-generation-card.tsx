@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -17,20 +19,24 @@ import {
 import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
 import { ScriptAiTools } from './script-ai-tools'
-import { Video, Wand2, Loader2 } from 'lucide-react'
-import { canGenerateVideo, getVideoLimit } from '@/lib/plan-utils'
+import { Video, Wand2, Loader2, Sparkles, Zap, Coins, Lock, ArrowUpRight, Volume2, BrainCircuit, RefreshCw } from 'lucide-react'
+import { canGenerateVideo, getVideoLimit, canUseVeo } from '@/lib/plan-utils'
 import { UpgradeModal } from './upgrade-modal'
+import { cn } from '@/lib/utils'
 import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
+import type { VeoModel, VeoAspectRatio, VeoDuration } from '@/lib/veo-types'
+import Link from 'next/link'
 
 interface VideoGenerationCardProps {
   planId: PlanId
   videosThisMonth: number
   aiUsageThisMonth: number
+  creditsRemaining?: number
 }
 
-export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth }: VideoGenerationCardProps) {
-  const [mode, setMode] = useState<'avatar' | 'prompt'>('avatar')
+export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth, creditsRemaining = 0 }: VideoGenerationCardProps) {
+  const [mode, setMode] = useState<'avatar' | 'prompt' | 'veo'>('avatar')
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [title, setTitle] = useState('')
@@ -40,6 +46,20 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Veo tab state
+  const [veoPrompt, setVeoPrompt] = useState('')
+  const [veoTitle, setVeoTitle] = useState('')
+  const [veoAspectRatio, setVeoAspectRatio] = useState<VeoAspectRatio>('16:9')
+  const [veoDuration, setVeoDuration] = useState<VeoDuration>(8)
+  const [veoModel, setVeoModel] = useState<VeoModel>('veo-3.1-fast-generate-preview')
+  const [veoAudio, setVeoAudio] = useState(false)
+  const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false)
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
+
+  const hasVeoAccess = canUseVeo(planId)
+  const veoCreditCost = veoDuration * (veoModel === 'veo-3.1-fast-generate-preview' ? 1 : 2)
+  const hasEnoughCredits = creditsRemaining >= veoCreditCost
 
   // Check for prefilled script from Smart Editing "Use in Video"
   useEffect(() => {
@@ -84,6 +104,49 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
       ? selectedAvatar && selectedVoice && script.trim().length > 0
       : prompt.trim().length > 0)
 
+  const canGenerateVeo =
+    !isGenerating &&
+    hasVeoAccess &&
+    hasEnoughCredits &&
+    veoTitle.trim().length > 0 &&
+    veoPrompt.trim().length > 0
+
+  async function handleGenerateVeoPrompt() {
+    if (!veoTitle.trim()) return
+    setIsGeneratingPrompt(true)
+    try {
+      const res = await fetch('/api/ai/generate-veo-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: veoTitle.trim(), duration: veoDuration }),
+      })
+      const data = await res.json()
+      if (res.ok && data.prompt) {
+        setVeoPrompt(data.prompt)
+      }
+    } catch { /* ignore */ } finally {
+      setIsGeneratingPrompt(false)
+    }
+  }
+
+  async function handleEnhanceVeoPrompt() {
+    if (!veoPrompt.trim()) return
+    setIsEnhancingPrompt(true)
+    try {
+      const res = await fetch('/api/ai/enhance-veo-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: veoPrompt.trim(), style: 'cinematic' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.prompt) {
+        setVeoPrompt(data.prompt)
+      }
+    } catch { /* ignore */ } finally {
+      setIsEnhancingPrompt(false)
+    }
+  }
+
   async function handleGenerate() {
     setIsGenerating(true)
     setError(null)
@@ -115,6 +178,44 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
     }
   }
 
+  async function handleVeoGenerate() {
+    if (!canGenerateVeo) return
+    setIsGenerating(true)
+    setError(null)
+
+    try {
+      const finalPrompt = veoAudio
+        ? `${veoPrompt.trim()}`
+        : veoPrompt.trim()
+
+      const res = await fetch('/api/veo/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: veoTitle.trim(),
+          prompt: finalPrompt,
+          aspectRatio: veoAspectRatio,
+          duration: veoDuration,
+          model: veoModel,
+          generateAudio: veoAudio,
+          mode: 'ugc',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to generate video')
+        return
+      }
+      window.dispatchEvent(new CustomEvent('video-created', { detail: data.video }))
+      setVeoTitle('')
+      setVeoPrompt('')
+    } catch {
+      setError('Failed to generate video')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   return (
     <Card id="video-generation-card">
       <CardHeader>
@@ -129,8 +230,8 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="avatar" onValueChange={(v) => setMode(v as 'avatar' | 'prompt')}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="avatar" onValueChange={(v) => setMode(v as 'avatar' | 'prompt' | 'veo')}>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="avatar" className="flex items-center gap-2">
               <Video className="h-4 w-4" />
               Avatar
@@ -138,6 +239,11 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
             <TabsTrigger value="prompt" className="flex items-center gap-2">
               <Wand2 className="h-4 w-4" />
               Prompt
+            </TabsTrigger>
+            <TabsTrigger value="veo" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Video
+              {!hasVeoAccess && <Lock className="h-3 w-3 ml-0.5" />}
             </TabsTrigger>
           </TabsList>
 
@@ -241,6 +347,195 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
               An avatar and voice will be automatically selected. Your description will be used as the script.
             </p>
           </TabsContent>
+
+          {/* Veo 3 AI Video Tab */}
+          <TabsContent value="veo" className="mt-4 space-y-4">
+            {!hasVeoAccess ? (
+              /* Upgrade prompt for Free/Starter users */
+              <div className="flex flex-col items-center gap-4 rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">AI Video Generation</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Generate stunning videos with Google Veo 3.1 — text to video, 4K quality, audio generation.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2 text-xs">
+                  <Badge variant="secondary">Text to Video</Badge>
+                  <Badge variant="secondary">4K Resolution</Badge>
+                  <Badge variant="secondary">AI Audio</Badge>
+                  <Badge variant="secondary">Draft & Standard</Badge>
+                </div>
+                <Button asChild size="sm">
+                  <Link href="/#pricing">
+                    Upgrade to Creator
+                    <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+                <p className="text-[10px] text-muted-foreground">Requires Creator plan ($60/mo) or higher</p>
+              </div>
+            ) : (
+              /* Full Veo 3 generation UI */
+              <>
+                <div className="space-y-2">
+                  <Label>Title</Label>
+                  <Input
+                    value={veoTitle}
+                    onChange={(e) => setVeoTitle(e.target.value)}
+                    placeholder="My AI Video"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Describe your video</Label>
+                    <span className="text-xs text-muted-foreground">{veoPrompt.length}/5000</span>
+                  </div>
+                  <Textarea
+                    value={veoPrompt}
+                    onChange={(e) => setVeoPrompt(e.target.value)}
+                    maxLength={5000}
+                    rows={5}
+                    placeholder="A cinematic drone shot over a coastal city at golden hour, waves crashing on rocky shores..."
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={!veoTitle.trim() || isGeneratingPrompt}
+                      onClick={handleGenerateVeoPrompt}
+                    >
+                      {isGeneratingPrompt ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <BrainCircuit className="mr-1 h-3 w-3" />
+                      )}
+                      AI Generate from Title
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={!veoPrompt.trim() || isEnhancingPrompt}
+                      onClick={handleEnhanceVeoPrompt}
+                    >
+                      {isEnhancingPrompt ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-1 h-3 w-3" />
+                      )}
+                      Enhance Prompt
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Aspect Ratio</Label>
+                    <Select value={veoAspectRatio} onValueChange={(v) => setVeoAspectRatio(v as VeoAspectRatio)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="16:9">Landscape (16:9)</SelectItem>
+                        <SelectItem value="9:16">Portrait (9:16)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Duration</Label>
+                    <div className="flex gap-1">
+                      {([4, 6, 8] as VeoDuration[]).map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setVeoDuration(d)}
+                          className={cn(
+                            'flex h-8 flex-1 items-center justify-center rounded-md border text-xs font-medium transition-colors',
+                            veoDuration === d
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-input bg-background hover:bg-accent'
+                          )}
+                        >
+                          {d}s
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Quality</Label>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setVeoModel('veo-3.1-fast-generate-preview')}
+                        className={cn(
+                          'flex h-8 items-center justify-center gap-1 rounded-md border text-[10px] font-medium transition-colors',
+                          veoModel === 'veo-3.1-fast-generate-preview'
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-background hover:bg-accent'
+                        )}
+                      >
+                        <Zap className="h-3 w-3" />
+                        Draft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVeoModel('veo-3.1-generate-preview')}
+                        className={cn(
+                          'flex h-8 items-center justify-center gap-1 rounded-md border text-[10px] font-medium transition-colors',
+                          veoModel === 'veo-3.1-generate-preview'
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-background hover:bg-accent'
+                        )}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        4K
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Audio toggle */}
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Generate Audio</p>
+                      <p className="text-[10px] text-muted-foreground">AI-generated sound effects and ambient audio</p>
+                    </div>
+                  </div>
+                  <Switch checked={veoAudio} onCheckedChange={setVeoAudio} />
+                </div>
+
+                {/* Credit cost */}
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">{veoCreditCost} credits</p>
+                  </div>
+                  <p className={cn(
+                    'text-sm font-medium',
+                    hasEnoughCredits ? 'text-green-600' : 'text-destructive'
+                  )}>
+                    {creditsRemaining} available
+                  </p>
+                </div>
+
+                {!hasEnoughCredits && (
+                  <p className="text-xs text-destructive">
+                    Insufficient credits. Need {veoCreditCost}, have {creditsRemaining}.
+                  </p>
+                )}
+              </>
+            )}
+          </TabsContent>
         </Tabs>
 
         {error && (
@@ -249,7 +544,7 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
           </div>
         )}
 
-        {limitReached && (
+        {limitReached && mode !== 'veo' && (
           <div className="mt-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
             You&apos;ve reached your monthly video limit.{' '}
             <button
@@ -263,22 +558,44 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth 
           </div>
         )}
 
-        <Button
-          onClick={limitReached ? () => setShowUpgradeModal(true) : handleGenerate}
-          disabled={limitReached ? false : !canGenerate}
-          className="mt-4 w-full"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : limitReached ? (
-            'Upgrade Plan'
-          ) : (
-            'Generate Video'
-          )}
-        </Button>
+        {mode === 'veo' ? (
+          hasVeoAccess && (
+            <Button
+              onClick={handleVeoGenerate}
+              disabled={!canGenerateVeo}
+              className="mt-4 w-full"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate AI Video ({veoCreditCost} credits)
+                </>
+              )}
+            </Button>
+          )
+        ) : (
+          <Button
+            onClick={limitReached ? () => setShowUpgradeModal(true) : handleGenerate}
+            disabled={limitReached ? false : !canGenerate}
+            className="mt-4 w-full"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : limitReached ? (
+              'Upgrade Plan'
+            ) : (
+              'Generate Video'
+            )}
+          </Button>
+        )}
 
         <UpgradeModal
           open={showUpgradeModal}

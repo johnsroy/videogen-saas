@@ -157,6 +157,7 @@ export function UGCContent({ planId, hasFullAccess, creditsRemaining = 0, credit
               audioEnabled={audioEnabled}
               audioDirection={audioDirection}
               onVideoCreated={handleVideoCreated}
+              creditsRemaining={credits.remaining}
             />
           </TabsContent>
 

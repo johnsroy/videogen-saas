@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Film, Play, Loader2, X, Trash2 } from 'lucide-react'
+import { Film, Play, Loader2, X, Trash2, Volume2 } from 'lucide-react'
 import { VideoStatusBadge } from './video-status-badge'
 import { VideoPlayerDialog } from './video-player-dialog'
 import { VideoProgressBar } from './video-progress-bar'
@@ -206,7 +206,7 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
               video.status === 'completed' ? setSelectedVideo(video) : null
             }
           >
-            <div className="relative aspect-video bg-muted flex items-center justify-center">
+            <div className="group/thumb relative aspect-video bg-muted flex items-center justify-center overflow-hidden">
               {video.thumbnail_url ? (
                 <img
                   src={video.thumbnail_url}
@@ -220,6 +220,8 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
                     {video.status === 'pending' ? 'Queued...' : 'Rendering...'}
                   </p>
                 </div>
+              ) : video.status === 'completed' && video.video_url ? (
+                <VideoThumbnail video={video} />
               ) : video.status === 'completed' ? (
                 <Play className="h-10 w-10 text-muted-foreground/40" />
               ) : (
@@ -316,6 +318,57 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
           open={!!selectedVideo}
           onOpenChange={(open) => !open && setSelectedVideo(null)}
         />
+      )}
+    </>
+  )
+}
+
+/** Video thumbnail that shows a frame from the video on hover */
+function VideoThumbnail({ video }: { video: VideoRecord }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  const isPersistedVeo = video.provider === 'google_veo' && video.video_url?.includes('supabase.co/storage/')
+  const needsProxy = video.provider === 'google_veo' && !isPersistedVeo
+  const videoSrc = useMemo(
+    () => needsProxy ? `/api/veo/download/${video.id}` : video.video_url!,
+    [needsProxy, video.id, video.video_url]
+  )
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        src={videoSrc}
+        muted
+        preload="metadata"
+        playsInline
+        onLoadedData={() => setLoaded(true)}
+        onMouseEnter={() => videoRef.current?.play().catch(() => {})}
+        onMouseLeave={() => {
+          if (videoRef.current) {
+            videoRef.current.pause()
+            videoRef.current.currentTime = 0
+          }
+        }}
+        className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted">
+          <Play className="h-10 w-10 text-muted-foreground/40" />
+        </div>
+      )}
+      {/* Hover play overlay */}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-200 group-hover/thumb:bg-black/20">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/0 transition-all duration-200 group-hover/thumb:bg-white/80 group-hover/thumb:scale-100 scale-75 opacity-0 group-hover/thumb:opacity-100">
+          <Play className="h-4 w-4 text-black ml-0.5" />
+        </div>
+      </div>
+      {/* Duration badge */}
+      {video.duration && (
+        <div className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
+          {Math.round(video.duration)}s
+        </div>
       )}
     </>
   )
