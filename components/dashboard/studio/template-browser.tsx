@@ -312,9 +312,12 @@ function TemplateCard({
 }) {
   const [previewing, setPreviewing] = useState(false)
   const [sceneIndex, setSceneIndex] = useState(0)
+  const [videoLoaded, setVideoLoaded] = useState(false)
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(null)
   const sceneTimer = useRef<ReturnType<typeof setInterval>>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const categoryMeta = TEMPLATE_CATEGORIES.find((c) => c.id === template.category)
+  const hasVideoPreview = !!template.previewVideoUrl
 
   // Extract scene descriptions from the template for animated text overlay
   const sceneDescriptions = useMemo(() => {
@@ -335,7 +338,14 @@ function TemplateCard({
   function startPreview() {
     setPreviewing(true)
     setSceneIndex(0)
-    if (sceneDescriptions.length > 1) {
+
+    // Play video preview if available
+    if (hasVideoPreview && videoRef.current) {
+      videoRef.current.currentTime = 0
+      videoRef.current.play().catch(() => {})
+    }
+
+    if (sceneDescriptions.length > 1 && !hasVideoPreview) {
       let idx = 0
       sceneTimer.current = setInterval(() => {
         idx = (idx + 1) % sceneDescriptions.length
@@ -347,6 +357,13 @@ function TemplateCard({
   function stopPreview() {
     setPreviewing(false)
     setSceneIndex(0)
+
+    // Pause video preview
+    if (hasVideoPreview && videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.currentTime = 0
+    }
+
     if (sceneTimer.current) {
       clearInterval(sceneTimer.current)
       sceneTimer.current = null
@@ -373,13 +390,29 @@ function TemplateCard({
     >
       {/* Preview area */}
       <div className="relative h-36 overflow-hidden">
-        {/* Base gradient — always visible, animates when previewing */}
+        {/* Video preview element — preloaded when URL exists */}
+        {hasVideoPreview && (
+          <video
+            ref={videoRef}
+            src={template.previewVideoUrl}
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            onLoadedData={() => setVideoLoaded(true)}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+              previewing && videoLoaded ? 'opacity-100 z-10' : 'opacity-0'
+            }`}
+          />
+        )}
+
+        {/* Base gradient — always visible as fallback, animates when previewing (no video) */}
         <div
           className="absolute inset-0"
           style={{
             background: `linear-gradient(135deg, ${template.gradientColors[0]}, ${template.gradientColors[1]}, ${template.gradientColors[0]})`,
-            backgroundSize: previewing ? '400% 400%' : '200% 200%',
-            animation: previewing
+            backgroundSize: previewing && !hasVideoPreview ? '400% 400%' : '200% 200%',
+            animation: previewing && !hasVideoPreview
               ? `tpl-gradient 4s ease infinite, ${cameraAnim} 5s ease-in-out infinite alternate`
               : 'none',
             transition: 'background-size 0.5s ease',
@@ -389,60 +422,67 @@ function TemplateCard({
         {/* ═══ Preview overlays — only when previewing ═══ */}
         {previewing && (
           <>
-            {/* Bright animated light streaks */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `linear-gradient(110deg, transparent 30%, ${template.gradientColors[1]}66 45%, transparent 55%)`,
-                animation: 'tpl-scanline 1.5s linear infinite',
-              }}
-            />
+            {/* Gradient animation overlays — only when no video is playing */}
+            {!(hasVideoPreview && videoLoaded) && (
+              <>
+                {/* Bright animated light streaks */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: `linear-gradient(110deg, transparent 30%, ${template.gradientColors[1]}66 45%, transparent 55%)`,
+                    animation: 'tpl-scanline 1.5s linear infinite',
+                  }}
+                />
 
-            {/* Animated glowing orb that moves */}
-            <div
-              className="absolute w-32 h-32 rounded-full pointer-events-none"
-              style={{
-                background: `radial-gradient(circle, ${template.gradientColors[1]}88, transparent 70%)`,
-                filter: 'blur(20px)',
-                animation: `${cameraAnim} 4s ease-in-out infinite alternate`,
-                left: '20%',
-                top: '10%',
-              }}
-            />
+                {/* Animated glowing orb that moves */}
+                <div
+                  className="absolute w-32 h-32 rounded-full pointer-events-none"
+                  style={{
+                    background: `radial-gradient(circle, ${template.gradientColors[1]}88, transparent 70%)`,
+                    filter: 'blur(20px)',
+                    animation: `${cameraAnim} 4s ease-in-out infinite alternate`,
+                    left: '20%',
+                    top: '10%',
+                  }}
+                />
 
-            {/* Scene description text — in a contained badge */}
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center px-3 z-10">
-              <div
-                key={sceneIndex}
-                className="rounded-lg bg-black/60 backdrop-blur-sm px-3 py-1.5 shadow-lg"
-                style={{ animation: 'tpl-text-in 2.5s ease-in-out forwards' }}
-              >
-                <p className="text-xs font-semibold text-white text-center tracking-wide">
-                  {sceneDescriptions[sceneIndex]}
-                </p>
-              </div>
-            </div>
-
-            {/* Scene counter for multi-segment */}
-            {sceneDescriptions.length > 1 && (
-              <div
-                key={`counter-${sceneIndex}`}
-                className="absolute top-2 left-2 z-20"
-                style={{ animation: 'tpl-scene-counter 2.5s ease-in-out forwards' }}
-              >
-                <div className="flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 backdrop-blur-sm">
-                  <Clapperboard className="h-2.5 w-2.5 text-primary" />
-                  <span className="text-[10px] font-bold text-white tabular-nums">
-                    {sceneIndex + 1}/{sceneDescriptions.length}
-                  </span>
+                {/* Scene description text — in a contained badge */}
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center px-3 z-10">
+                  <div
+                    key={sceneIndex}
+                    className="rounded-lg bg-black/60 backdrop-blur-sm px-3 py-1.5 shadow-lg"
+                    style={{ animation: 'tpl-text-in 2.5s ease-in-out forwards' }}
+                  >
+                    <p className="text-xs font-semibold text-white text-center tracking-wide">
+                      {sceneDescriptions[sceneIndex]}
+                    </p>
+                  </div>
                 </div>
-              </div>
+
+                {/* Scene counter for multi-segment */}
+                {sceneDescriptions.length > 1 && (
+                  <div
+                    key={`counter-${sceneIndex}`}
+                    className="absolute top-2 left-2 z-20"
+                    style={{ animation: 'tpl-scene-counter 2.5s ease-in-out forwards' }}
+                  >
+                    <div className="flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 backdrop-blur-sm">
+                      <Clapperboard className="h-2.5 w-2.5 text-primary" />
+                      <span className="text-[10px] font-bold text-white tabular-nums">
+                        {sceneIndex + 1}/{sceneDescriptions.length}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* "PREVIEW" indicator — top right */}
             <div className="absolute top-2 right-2 z-20 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 shadow-lg">
               <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-              <span className="text-[9px] font-bold text-white uppercase tracking-wider">Live</span>
+              <span className="text-[9px] font-bold text-white uppercase tracking-wider">
+                {hasVideoPreview && videoLoaded ? 'Playing' : 'Live'}
+              </span>
             </div>
 
             {/* Camera movement at bottom */}

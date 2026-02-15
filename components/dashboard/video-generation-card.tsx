@@ -25,7 +25,7 @@ import { UpgradeModal } from './upgrade-modal'
 import { cn } from '@/lib/utils'
 import type { PlanId } from '@/lib/plans'
 import type { VideoRecord } from '@/lib/heygen-types'
-import type { VeoModel, VeoAspectRatio, VeoDuration } from '@/lib/veo-types'
+import type { VeoModel, VeoAspectRatio, ExtendedDuration } from '@/lib/veo-types'
 import Link from 'next/link'
 
 interface VideoGenerationCardProps {
@@ -51,7 +51,7 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
   const [veoPrompt, setVeoPrompt] = useState('')
   const [veoTitle, setVeoTitle] = useState('')
   const [veoAspectRatio, setVeoAspectRatio] = useState<VeoAspectRatio>('16:9')
-  const [veoDuration, setVeoDuration] = useState<VeoDuration>(8)
+  const [veoDuration, setVeoDuration] = useState<ExtendedDuration>(8)
   const [veoModel, setVeoModel] = useState<VeoModel>('veo-3.1-fast-generate-preview')
   const [veoAudio, setVeoAudio] = useState(false)
   const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false)
@@ -59,6 +59,7 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
 
   const hasVeoAccess = canUseVeo(planId)
   const veoCreditCost = veoDuration * (veoModel === 'veo-3.1-fast-generate-preview' ? 1 : 2)
+  const isVeoExtended = veoDuration > 8
   const hasEnoughCredits = creditsRemaining >= veoCreditCost
 
   // Check for prefilled script from Smart Editing "Use in Video"
@@ -188,7 +189,9 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
         ? `${veoPrompt.trim()}`
         : veoPrompt.trim()
 
-      const res = await fetch('/api/veo/generate', {
+      const endpoint = isVeoExtended ? '/api/veo/generate-extended' : '/api/veo/generate'
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -450,23 +453,28 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Duration</Label>
-                    <div className="flex gap-1">
-                      {([4, 6, 8] as VeoDuration[]).map((d) => (
-                        <button
-                          key={d}
-                          type="button"
-                          onClick={() => setVeoDuration(d)}
-                          className={cn(
-                            'flex h-8 flex-1 items-center justify-center rounded-md border text-xs font-medium transition-colors',
-                            veoDuration === d
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-input bg-background hover:bg-accent'
-                          )}
-                        >
-                          {d}s
-                        </button>
-                      ))}
-                    </div>
+                    <Select
+                      value={String(veoDuration)}
+                      onValueChange={(v) => setVeoDuration(Number(v) as ExtendedDuration)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="4" className="text-xs">4 seconds</SelectItem>
+                        <SelectItem value="6" className="text-xs">6 seconds</SelectItem>
+                        <SelectItem value="8" className="text-xs">8 seconds</SelectItem>
+                        <SelectItem value="15" className="text-xs">15 seconds</SelectItem>
+                        <SelectItem value="30" className="text-xs">30 seconds</SelectItem>
+                        <SelectItem value="60" className="text-xs">1 minute</SelectItem>
+                        <SelectItem value="120" className="text-xs">2 minutes</SelectItem>
+                        <SelectItem value="300" className="text-xs">5 minutes</SelectItem>
+                        <SelectItem value="600" className="text-xs">10 minutes</SelectItem>
+                        <SelectItem value="1800" className="text-xs">30 minutes</SelectItem>
+                        <SelectItem value="2700" className="text-xs">45 minutes</SelectItem>
+                        <SelectItem value="3600" className="text-xs">60 minutes</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5">

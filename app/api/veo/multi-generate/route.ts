@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { generateVeoVideo, getVeoOperationStatus, calculateVeoCreditCost } from '@/lib/google-veo'
+import { calculateVeoCreditCost } from '@/lib/google-veo'
 import { getEffectivePlan, canUseVeo } from '@/lib/plan-utils'
 import { consumeCredits, refundCredits } from '@/lib/credits'
-import { concatenateVideos } from '@/lib/ffmpeg-compose'
 import type { VeoModel, VeoAspectRatio, VeoDuration } from '@/lib/veo-types'
 
-export const maxDuration = 3600 // 1 hour for XLarge videos
+export const maxDuration = 60 // Only creates records and triggers worker
 
-const PARALLEL_LIMIT = 5
 const VALID_DURATIONS: VeoDuration[] = [4, 6, 8]
 const VALID_ASPECT_RATIOS: VeoAspectRatio[] = ['16:9', '9:16']
 const VALID_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_IMAGE_BASE64_LENGTH = 15_000_000
-const POLL_INTERVAL_MS = 5_000
-const MAX_POLL_ATTEMPTS = 240 // 20 minutes max per segment
 
 interface SegmentInput {
   promptTemplate: string
@@ -24,36 +20,27 @@ interface SegmentInput {
   label: string
 }
 
-/** Run items in parallel with a concurrency limit */
-async function parallelLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length)
-  let nextIndex = 0
-
-  async function worker() {
-    while (nextIndex < items.length) {
-      const i = nextIndex++
-      results[i] = await fn(items[i], i)
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker())
-  await Promise.all(workers)
-  return results
+function getAppUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) ||
+    'http://localhost:3000'
+  )
 }
 
-/** Poll a Veo operation until done or timeout */
-async function pollUntilDone(operationName: string): Promise<string> {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
-    const status = await getVeoOperationStatus(operationName)
-    if (status.error) throw new Error(`Veo generation failed: ${status.error}`)
-    if (status.done && status.videoUri) return status.videoUri
-  }
-  throw new Error('Video generation timed out')
+/** Trigger the background worker to process segments */
+function triggerWorker(jobId: string) {
+  const url = `${getAppUrl()}/api/veo/worker`
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-worker-secret': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    },
+    body: JSON.stringify({ jobId }),
+  }).catch((err) => {
+    console.error('Failed to trigger worker:', err)
+  })
 }
 
 export async function POST(request: Request) {
@@ -197,8 +184,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save video record' }, { status: 500 })
     }
 
-    // Create template job for progress tracking
-    const { data: job, error: jobDbErr } = await getSupabaseAdmin()
+    // Build segment data for the worker
+    const workerSegments = typedSegments.map((seg, i) => ({
+      index: i,
+      prompt: seg.promptTemplate,
+      duration: seg.duration,
+      imageMode: seg.imageMode || null,
+      label: seg.label || `Segment ${i + 1}`,
+      status: 'pending' as const,
+      videoUri: null,
+    }))
+
+    const segmentData = {
+      type: 'template_multi' as const,
+      segments: workerSegments,
+      params: {
+        aspectRatio: aspectRatio as VeoAspectRatio,
+        model: model as VeoModel,
+        generateAudio,
+        negativePrompt: null,
+        productImages: productImages || null,
+      },
+      composition: {
+        userId: user.id,
+        videoId,
+        totalCredits,
+        isStandard: true,
+        storageBucket: 'exports',
+        storagePath: `template-videos/${user.id}/${videoId}.mp4`,
+      },
+    }
+
+    // Create job with segment data
+    const { data: job } = await getSupabaseAdmin()
       .from('template_jobs')
       .insert({
         user_id: user.id,
@@ -207,182 +225,20 @@ export async function POST(request: Request) {
         status: 'generating',
         total_segments: typedSegments.length,
         completed_segments: 0,
+        segment_data: segmentData,
       })
       .select()
       .single()
 
-    if (jobDbErr) {
-      console.error('Failed to create template job:', jobDbErr)
-      // Non-fatal — continue without job tracking
-    }
-
     const jobId = job?.id
 
-    // Generate all segments in parallel with concurrency limit
-    try {
-      const videoUris = await parallelLimit(
-        typedSegments,
-        PARALLEL_LIMIT,
-        async (seg, index) => {
-          // Build image params based on imageMode
-          const imageParams: Record<string, unknown> = {}
-          if (productImages?.length > 0) {
-            if (seg.imageMode === 'start_frame') {
-              imageParams.startFrame = {
-                base64: productImages[0].base64,
-                mimeType: productImages[0].mimeType,
-              }
-            } else {
-              imageParams.referenceImages = productImages.slice(0, 3).map(
-                (img: { base64: string; mimeType: string }) => ({
-                  base64: img.base64,
-                  mimeType: img.mimeType,
-                })
-              )
-            }
-          }
-
-          // Generate segment
-          const result = await generateVeoVideo({
-            prompt: seg.promptTemplate,
-            ...imageParams,
-            aspectRatio: aspectRatio as VeoAspectRatio,
-            duration: seg.duration,
-            generateAudio,
-            model: model as VeoModel,
-          })
-
-          // Poll until done
-          const videoUri = await pollUntilDone(result.operationName)
-
-          // Update progress
-          if (jobId) {
-            await getSupabaseAdmin()
-              .from('template_jobs')
-              .update({
-                completed_segments: index + 1,
-                current_segment_label: seg.label,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', jobId)
-              .eq('user_id', user.id)
-          }
-
-          return videoUri
-        }
-      )
-
-      // Update job status to composing
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({ status: 'composing', updated_at: new Date().toISOString() })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      // Concatenate all clips with 4K upscale
-      const composedBuffer = await concatenateVideos(videoUris, {
-        upscale4K: true,
-        aspectRatio: aspectRatio as '16:9' | '9:16',
-      })
-
-      // Upload to Supabase storage
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({ status: 'uploading', updated_at: new Date().toISOString() })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      const storagePath = `template-videos/${user.id}/${videoId}.mp4`
-      const { error: uploadErr } = await getSupabaseAdmin().storage
-        .from('exports')
-        .upload(storagePath, composedBuffer, {
-          contentType: 'video/mp4',
-          upsert: true,
-        })
-
-      if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`)
-
-      const { data: { publicUrl } } = getSupabaseAdmin().storage
-        .from('exports')
-        .getPublicUrl(storagePath)
-
-      // Update video record
-      await getSupabaseAdmin()
-        .from('videos')
-        .update({
-          status: 'completed',
-          video_url: publicUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', videoId)
-        .eq('user_id', user.id)
-
-      // Update job
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({ status: 'completed', updated_at: new Date().toISOString() })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      // Fetch final video
-      const { data: finalVideo } = await getSupabaseAdmin()
-        .from('videos')
-        .select('*')
-        .eq('id', videoId)
-        .single()
-
-      return NextResponse.json({ video: finalVideo, job: { id: jobId } })
-    } catch (genError) {
-      console.error('Multi-generate error:', genError)
-
-      // Refund all credits
-      await refundCredits({
-        userId: user.id,
-        amount: totalCredits,
-        resourceId: videoId,
-        reason: 'Template video generation failed — credits refunded',
-        resourceType: 'veo_template_multi',
-      }).catch(() => {})
-
-      // Update records
-      await getSupabaseAdmin()
-        .from('videos')
-        .update({
-          status: 'failed',
-          error_message: genError instanceof Error ? genError.message : 'Generation failed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', videoId)
-        .eq('user_id', user.id)
-
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({
-            status: 'failed',
-            error_message: genError instanceof Error ? genError.message : 'Generation failed',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      const raw = genError instanceof Error ? genError.message : String(genError)
-      if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429') || raw.includes('quota')) {
-        return NextResponse.json(
-          { error: 'Google Veo API quota exceeded. Please wait a few minutes and try again.' },
-          { status: 429 }
-        )
-      }
-
-      return NextResponse.json({ error: raw || 'Failed to generate template video' }, { status: 500 })
+    // Trigger background worker (fire-and-forget)
+    if (jobId) {
+      triggerWorker(jobId)
     }
+
+    // Return immediately — client polls /api/veo/template-job/[jobId]
+    return NextResponse.json({ video: videoRecord, job: { id: jobId } })
   } catch (error) {
     console.error('Multi-generate error:', error)
     const message = error instanceof Error ? error.message : 'Failed to generate template video'

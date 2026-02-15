@@ -54,14 +54,19 @@ type JobStatus = {
   error_message: string | null
 }
 
-const DURATION_OPTIONS: { value: ExtendedDuration; label: string; segments: number }[] = [
-  { value: 4, label: '4s', segments: 1 },
-  { value: 6, label: '6s', segments: 1 },
-  { value: 8, label: '8s', segments: 1 },
-  { value: 15, label: '15s', segments: 2 },
-  { value: 30, label: '30s', segments: 4 },
-  { value: 60, label: '1 min', segments: 8 },
-  { value: 120, label: '2 min', segments: 15 },
+const DURATION_OPTIONS: { value: ExtendedDuration; label: string; segments: number; group?: string }[] = [
+  { value: 4, label: '4s', segments: 1, group: 'Short' },
+  { value: 6, label: '6s', segments: 1, group: 'Short' },
+  { value: 8, label: '8s', segments: 1, group: 'Short' },
+  { value: 15, label: '15s', segments: 2, group: 'Medium' },
+  { value: 30, label: '30s', segments: 4, group: 'Medium' },
+  { value: 60, label: '1 min', segments: 8, group: 'Medium' },
+  { value: 120, label: '2 min', segments: 15, group: 'Long' },
+  { value: 300, label: '5 min', segments: 38, group: 'Long' },
+  { value: 600, label: '10 min', segments: 75, group: 'Long' },
+  { value: 1800, label: '30 min', segments: 225, group: 'Extended' },
+  { value: 2700, label: '45 min', segments: 338, group: 'Extended' },
+  { value: 3600, label: '60 min', segments: 450, group: 'Extended' },
 ]
 
 export function TextToVideoCreator({
@@ -504,6 +509,11 @@ Or use AI Generate above to create a detailed cinematic prompt from just a brief
                 <SelectItem value="30" className="text-xs">30 seconds</SelectItem>
                 <SelectItem value="60" className="text-xs">1 minute</SelectItem>
                 <SelectItem value="120" className="text-xs">2 minutes</SelectItem>
+                <SelectItem value="300" className="text-xs">5 minutes</SelectItem>
+                <SelectItem value="600" className="text-xs">10 minutes</SelectItem>
+                <SelectItem value="1800" className="text-xs">30 minutes</SelectItem>
+                <SelectItem value="2700" className="text-xs">45 minutes</SelectItem>
+                <SelectItem value="3600" className="text-xs">60 minutes</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -559,6 +569,11 @@ Or use AI Generate above to create a detailed cinematic prompt from just a brief
                 This video will be generated as {selectedDuration.segments} parallel clips and composed into a single video.
                 {duration >= 60 && ' You can leave this page — check My Videos for progress.'}
               </p>
+              {duration >= 300 && (
+                <p className="mt-1 font-medium">
+                  Estimated generation time: ~{duration >= 1800 ? `${Math.round(selectedDuration.segments / 5 * 5 / 60)} hours` : `${Math.round(selectedDuration.segments / 5 * 5)} minutes`}
+                </p>
+              )}
             </div>
           </div>
         )}

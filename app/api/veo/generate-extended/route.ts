@@ -4,38 +4,23 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { generateVeoVideo, getVeoOperationStatus, calculateVeoCreditCost } from '@/lib/google-veo'
 import { getEffectivePlan, canUseVeo } from '@/lib/plan-utils'
 import { consumeCredits, refundCredits } from '@/lib/credits'
-import { concatenateVideos } from '@/lib/ffmpeg-compose'
 import type { VeoModel, VeoAspectRatio, VeoDuration } from '@/lib/veo-types'
 
-export const maxDuration = 600 // 10 minutes max for extended generation
+export const maxDuration = 300
 
-const PARALLEL_LIMIT = 5
-const VALID_EXTENDED_DURATIONS = [4, 6, 8, 15, 30, 60, 120]
+const VALID_EXTENDED_DURATIONS = [4, 6, 8, 15, 30, 60, 120, 300, 600, 1800, 2700, 3600]
 const VALID_ASPECT_RATIOS: VeoAspectRatio[] = ['16:9', '9:16']
 const VALID_MODELS: VeoModel[] = ['veo-3.1-generate-preview', 'veo-3.1-fast-generate-preview']
-const SEGMENT_DURATION: VeoDuration = 8 // Each segment is 8 seconds
+const SEGMENT_DURATION: VeoDuration = 8
 const POLL_INTERVAL_MS = 5_000
-const MAX_POLL_ATTEMPTS = 240 // 20 minutes max per segment
+const MAX_POLL_ATTEMPTS = 240
 
-/** Run items in parallel with a concurrency limit */
-async function parallelLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length)
-  let nextIndex = 0
-
-  async function worker() {
-    while (nextIndex < items.length) {
-      const i = nextIndex++
-      results[i] = await fn(items[i], i)
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker())
-  await Promise.all(workers)
-  return results
+function getAppUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) ||
+    'http://localhost:3000'
+  )
 }
 
 /** Poll a Veo operation until done or timeout */
@@ -47,6 +32,21 @@ async function pollUntilDone(operationName: string): Promise<string> {
     if (status.done && status.videoUri) return status.videoUri
   }
   throw new Error('Video generation timed out')
+}
+
+/** Trigger the background worker to process segments */
+function triggerWorker(jobId: string) {
+  const url = `${getAppUrl()}/api/veo/worker`
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-worker-secret': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    },
+    body: JSON.stringify({ jobId }),
+  }).catch((err) => {
+    console.error('Failed to trigger worker:', err)
+  })
 }
 
 export async function POST(request: Request) {
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // For short durations (<=8s), use standard single-clip flow
+    // ── Short durations (<=8s) — single-clip, synchronous ──
     if (duration <= 8) {
       const creditCost = calculateVeoCreditCost(duration as VeoDuration, model as VeoModel)
       const videoId = crypto.randomUUID()
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
           model: model as VeoModel,
         })
 
-        const dimension = aspectRatio === '9:16' ? '720x1280' : '1280x720'
+        const dim = aspectRatio === '9:16' ? '720x1280' : '1280x720'
         const { data: videoRecord, error: dbError } = await getSupabaseAdmin()
           .from('videos')
           .insert({
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
             status: 'pending',
             provider: 'google_veo',
             prompt: prompt.trim(),
-            dimension,
+            dimension: dim,
             credits_used: creditCost,
             veo_operation_name: result.operationName,
             veo_model: model,
@@ -167,10 +167,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Extended duration — multi-segment generation
+    // ── Extended durations (>8s) — multi-segment via background worker ──
     const numSegments = Math.ceil(duration / SEGMENT_DURATION)
     const totalCredits = calculateVeoCreditCost(duration, model as VeoModel)
     const videoId = crypto.randomUUID()
+    const isStandard = model === 'veo-3.1-generate-preview'
 
     const creditResult = await consumeCredits({
       userId: user.id,
@@ -188,7 +189,6 @@ export async function POST(request: Request) {
     }
 
     // Create video record
-    const isStandard = model === 'veo-3.1-generate-preview'
     const dimension = aspectRatio === '9:16'
       ? (isStandard ? '2160x3840' : '720x1280')
       : (isStandard ? '3840x2160' : '1280x720')
@@ -221,7 +221,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save video record' }, { status: 500 })
     }
 
-    // Create job for progress tracking
+    // Build segment data for the worker
+    const segments = Array.from({ length: numSegments }, (_, i) => ({
+      index: i,
+      prompt: i === 0
+        ? prompt.trim()
+        : `Continuation of the scene: ${prompt.trim()}. Maintain visual consistency, smooth transition, and continuous flow from the previous shot. Segment ${i + 1} of ${numSegments}.`,
+      duration: SEGMENT_DURATION,
+      imageMode: null,
+      label: `Clip ${i + 1}`,
+      status: 'pending' as const,
+      videoUri: null,
+    }))
+
+    const segmentData = {
+      type: 'extended' as const,
+      segments,
+      params: {
+        aspectRatio: aspectRatio as VeoAspectRatio,
+        model: model as VeoModel,
+        generateAudio,
+        negativePrompt: negativePrompt?.trim() || null,
+        productImages: null,
+      },
+      composition: {
+        userId: user.id,
+        videoId,
+        totalCredits,
+        isStandard,
+        storageBucket: 'exports',
+        storagePath: `extended-videos/${user.id}/${videoId}.mp4`,
+      },
+    }
+
+    // Create job with segment data
     const { data: job } = await getSupabaseAdmin()
       .from('template_jobs')
       .insert({
@@ -231,167 +264,38 @@ export async function POST(request: Request) {
         status: 'generating',
         total_segments: numSegments,
         completed_segments: 0,
+        segment_data: segmentData,
       })
       .select()
       .single()
 
     const jobId = job?.id
 
-    // Build segment prompts
-    const segmentPrompts: string[] = []
-    for (let i = 0; i < numSegments; i++) {
-      if (i === 0) {
-        segmentPrompts.push(prompt.trim())
-      } else {
-        segmentPrompts.push(
-          `Continuation of the scene: ${prompt.trim()}. Maintain visual consistency, smooth transition, and continuous flow from the previous shot. Segment ${i + 1} of ${numSegments}.`
-        )
-      }
+    // Fetch video record to return
+    const { data: videoRecord } = await getSupabaseAdmin()
+      .from('videos')
+      .select('*')
+      .eq('id', videoId)
+      .single()
+
+    // Trigger background worker (fire-and-forget)
+    if (jobId) {
+      triggerWorker(jobId)
     }
 
-    try {
-      // Generate all segments in parallel
-      const videoUris = await parallelLimit(
-        segmentPrompts,
-        PARALLEL_LIMIT,
-        async (segPrompt, index) => {
-          const result = await generateVeoVideo({
-            prompt: segPrompt,
-            aspectRatio: aspectRatio as VeoAspectRatio,
-            duration: SEGMENT_DURATION,
-            generateAudio,
-            negativePrompt: negativePrompt?.trim() || undefined,
-            model: model as VeoModel,
-          })
-
-          const videoUri = await pollUntilDone(result.operationName)
-
-          // Update progress
-          if (jobId) {
-            await getSupabaseAdmin()
-              .from('template_jobs')
-              .update({
-                completed_segments: index + 1,
-                current_segment_label: `Clip ${index + 1}`,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', jobId)
-              .eq('user_id', user.id)
-          }
-
-          return videoUri
-        }
-      )
-
-      // Compose clips
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({ status: 'composing', updated_at: new Date().toISOString() })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      const composedBuffer = await concatenateVideos(videoUris, {
-        upscale4K: isStandard,
-        aspectRatio: aspectRatio as '16:9' | '9:16',
-      })
-
-      // Upload
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({ status: 'uploading', updated_at: new Date().toISOString() })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      const storagePath = `extended-videos/${user.id}/${videoId}.mp4`
-      const { error: uploadErr } = await getSupabaseAdmin().storage
-        .from('exports')
-        .upload(storagePath, composedBuffer, {
-          contentType: 'video/mp4',
-          upsert: true,
-        })
-
-      if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`)
-
-      const { data: { publicUrl } } = getSupabaseAdmin().storage
-        .from('exports')
-        .getPublicUrl(storagePath)
-
-      // Update video record
-      await getSupabaseAdmin()
-        .from('videos')
-        .update({
-          status: 'completed',
-          video_url: publicUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', videoId)
-        .eq('user_id', user.id)
-
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({ status: 'completed', updated_at: new Date().toISOString() })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      const { data: finalVideo } = await getSupabaseAdmin()
-        .from('videos')
-        .select('*')
-        .eq('id', videoId)
-        .single()
-
-      return NextResponse.json({ video: finalVideo, job: { id: jobId } })
-    } catch (genError) {
-      console.error('Extended generate error:', genError)
-
-      await refundCredits({
-        userId: user.id,
-        amount: totalCredits,
-        resourceId: videoId,
-        reason: 'Extended video generation failed — credits refunded',
-        resourceType: 'veo_extended',
-      }).catch(() => {})
-
-      await getSupabaseAdmin()
-        .from('videos')
-        .update({
-          status: 'failed',
-          error_message: genError instanceof Error ? genError.message : 'Generation failed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', videoId)
-        .eq('user_id', user.id)
-
-      if (jobId) {
-        await getSupabaseAdmin()
-          .from('template_jobs')
-          .update({
-            status: 'failed',
-            error_message: genError instanceof Error ? genError.message : 'Generation failed',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', jobId)
-          .eq('user_id', user.id)
-      }
-
-      const raw = genError instanceof Error ? genError.message : String(genError)
-      if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429') || raw.includes('quota')) {
-        return NextResponse.json(
-          { error: 'Google Veo API quota exceeded. Please wait a few minutes and try again.' },
-          { status: 429 }
-        )
-      }
-
-      return NextResponse.json({ error: raw || 'Failed to generate extended video' }, { status: 500 })
-    }
+    // Return immediately — client polls /api/veo/template-job/[jobId]
+    return NextResponse.json({ video: videoRecord, job: { id: jobId } })
   } catch (error) {
     console.error('Extended generate error:', error)
     const message = error instanceof Error ? error.message : 'Failed to generate extended video'
+
+    if (message.includes('RESOURCE_EXHAUSTED') || message.includes('429') || message.includes('quota')) {
+      return NextResponse.json(
+        { error: 'Google Veo API quota exceeded. Please wait a few minutes and try again.' },
+        { status: 429 }
+      )
+    }
+
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

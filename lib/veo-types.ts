@@ -5,7 +5,7 @@ export type VeoAspectRatio = '16:9' | '9:16'
 export type VeoDuration = 4 | 6 | 8
 /** Extended durations for multi-segment generation (user-facing).
  * Durations > 8s are automatically split into multiple 8s clips. */
-export type ExtendedDuration = 4 | 6 | 8 | 15 | 30 | 60 | 120
+export type ExtendedDuration = 4 | 6 | 8 | 15 | 30 | 60 | 120 | 300 | 600 | 1800 | 2700 | 3600
 export type VeoResolution = '720p' | '1080p'
 
 export interface VeoReferenceImage {
@@ -107,6 +107,8 @@ export interface ShotTemplate {
   /** Segments for multi-segment (long/xlarge) templates */
   segments?: TemplateSegment[]
   gradientColors: [string, string]
+  /** Optional preview video URL for hover playback */
+  previewVideoUrl?: string
   isNew?: boolean
   isPopular?: boolean
 }
