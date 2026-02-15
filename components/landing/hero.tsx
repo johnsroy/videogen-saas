@@ -45,7 +45,7 @@ export function Hero({ user }: HeroProps) {
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base">
-              <Link href="#demo">
+              <Link href="#interactive-demo">
                 <Play className="mr-2 h-4 w-4" />
                 Watch Demo
               </Link>
@@ -58,26 +58,13 @@ export function Hero({ user }: HeroProps) {
           </p>
         </div>
 
-        {/* Floating video thumbnails grid */}
-        <div className="mt-16 grid grid-cols-3 gap-4 sm:grid-cols-5 lg:gap-6">
-          {[
-            { label: 'Product Demo', color: 'from-blue-500/20 to-blue-600/10' },
-            { label: 'UGC Testimonial', color: 'from-pink-500/20 to-pink-600/10' },
-            { label: 'E-commerce Ad', color: 'from-green-500/20 to-green-600/10' },
-            { label: 'Social Reel', color: 'from-purple-500/20 to-purple-600/10' },
-            { label: 'Explainer', color: 'from-orange-500/20 to-orange-600/10' },
-          ].map((item, i) => (
-            <div
-              key={item.label}
-              className={`aspect-[9/16] rounded-xl bg-gradient-to-br ${item.color} border flex flex-col items-center justify-center p-3 transition-transform hover:scale-105 ${i >= 3 ? 'hidden sm:flex' : ''}`}
-              style={{ animationDelay: `${i * 200}ms` }}
-            >
-              <div className="h-8 w-8 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center mb-2">
-                <Play className="h-4 w-4 text-foreground/70" />
-              </div>
-              <span className="text-xs font-medium text-foreground/70 text-center">{item.label}</span>
-            </div>
-          ))}
+        {/* Scroll indicator */}
+        <div className="mt-12 flex justify-center">
+          <div className="animate-bounce text-muted-foreground">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M19 12l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
       </div>
     </section>

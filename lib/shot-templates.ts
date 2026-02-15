@@ -53,7 +53,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#1a1a2e', '#16213e'],
+    gradientColors: ['#667eea', '#764ba2'],
     isPopular: true,
   },
   {
@@ -69,7 +69,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e8e8e8', '#b8b8b8'],
+    gradientColors: ['#f093fb', '#f5576c'],
     isPopular: true,
   },
   {
@@ -85,7 +85,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0f0c29', '#302b63'],
+    gradientColors: ['#4facfe', '#00f2fe'],
     isNew: true,
   },
   {
@@ -101,7 +101,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#d4c5a9', '#e8dcc8'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'ps-water-splash',
@@ -116,7 +116,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#1a5276', '#2e86c1'],
+    gradientColors: ['#4facfe', '#00f2fe'],
     isPopular: true,
   },
   {
@@ -132,7 +132,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#ff006e', '#3a0ca3'],
+    gradientColors: ['#fa709a', '#fee140'],
     isNew: true,
   },
   {
@@ -148,7 +148,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#f8f9fa', '#dee2e6'],
+    gradientColors: ['#a18cd1', '#fbc2eb'],
   },
   {
     id: 'ps-spotlight',
@@ -163,7 +163,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#000000', '#333333'],
+    gradientColors: ['#fccb90', '#d57eeb'],
   },
   {
     id: 'ps-golden-hour',
@@ -178,7 +178,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#f39c12', '#e74c3c'],
+    gradientColors: ['#ffd89b', '#19547b'],
   },
   {
     id: 'ps-smoke-reveal',
@@ -193,7 +193,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2c3e50', '#4a6741'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
   },
   {
     id: 'ps-unboxing-reveal',
@@ -208,7 +208,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#8d6e63', '#d7ccc8'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'ps-explosion-parts',
@@ -223,7 +223,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#ecf0f1', '#95a5a6'],
+    gradientColors: ['#c471f5', '#fa71cd'],
     isNew: true,
   },
   {
@@ -243,7 +243,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Before scene: A dull, ordinary setting without {product}. Muted colors, flat lighting. Something is clearly missing.', duration: 8, imageMode: 'reference', label: 'Before' },
       { promptTemplate: 'After scene: The same setting transformed with {product}. Vibrant colors, beautiful lighting, everything enhanced. {product_description}', duration: 8, imageMode: 'reference', label: 'After' },
     ],
-    gradientColors: ['#636e72', '#00b894'],
+    gradientColors: ['#48c6ef', '#6f86d6'],
   },
   {
     id: 'ps-product-lineup',
@@ -262,7 +262,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Wide establishing shot of {product} collection arranged beautifully on a surface. Premium studio lighting. {product_description}', duration: 8, imageMode: 'reference', label: 'Wide Shot' },
       { promptTemplate: 'Close-up detail shots of {product}, focusing on textures, materials, and craftsmanship. Macro lens feel. {product_description}', duration: 8, imageMode: 'reference', label: 'Detail Close-ups' },
     ],
-    gradientColors: ['#2d3436', '#636e72'],
+    gradientColors: ['#feada6', '#f5efef'],
   },
   {
     id: 'ps-full-launch',
@@ -285,7 +285,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Lifestyle context shot of {product} in an aspirational setting. Beautiful environment, the product as the centerpiece. Premium brand feeling.', duration: 8, imageMode: 'reference', label: 'Lifestyle Context' },
       { promptTemplate: 'Final hero shot of {product} with brand-style ending. Clean composition, the product perfectly lit. Call to action moment. {product_description}', duration: 8, imageMode: 'reference', label: 'CTA Finale' },
     ],
-    gradientColors: ['#0c0c0c', '#1a1a2e'],
+    gradientColors: ['#ff9a9e', '#fecfef'],
     isPopular: true,
   },
 
@@ -305,7 +305,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#6f4e37', '#c4a882'],
+    gradientColors: ['#fccb90', '#d57eeb'],
     isPopular: true,
   },
   {
@@ -321,7 +321,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#f5f0e8', '#d4c5a9'],
+    gradientColors: ['#ffd89b', '#19547b'],
   },
   {
     id: 'ls-office-desk',
@@ -336,7 +336,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#dfe6e9', '#b2bec3'],
+    gradientColors: ['#48c6ef', '#6f86d6'],
   },
   {
     id: 'ls-gym-workout',
@@ -351,7 +351,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#e17055'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'ls-poolside',
@@ -366,7 +366,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0984e3', '#74b9ff'],
+    gradientColors: ['#4facfe', '#00f2fe'],
   },
   {
     id: 'ls-garden-natural',
@@ -381,7 +381,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#27ae60', '#2ecc71'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'ls-living-room',
@@ -396,7 +396,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#e17055', '#fab1a0'],
+    gradientColors: ['#feada6', '#f5efef'],
   },
   {
     id: 'ls-morning-routine',
@@ -411,7 +411,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#ffeaa7', '#fdcb6e'],
+    gradientColors: ['#fa709a', '#fee140'],
   },
   {
     id: 'ls-beach-sunset',
@@ -426,7 +426,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#f39c12'],
+    gradientColors: ['#ff9a9e', '#fecfef'],
   },
   {
     id: 'ls-urban-street',
@@ -441,7 +441,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#636e72'],
+    gradientColors: ['#667eea', '#764ba2'],
   },
   {
     id: 'ls-rainy-window',
@@ -456,7 +456,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#b2bec3'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
     isNew: true,
   },
   {
@@ -472,7 +472,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#00b894', '#55efc4'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'ls-bookshelf',
@@ -487,7 +487,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#a29bfe', '#6c5ce7'],
+    gradientColors: ['#a18cd1', '#fbc2eb'],
   },
   {
     id: 'ls-day-in-life',
@@ -508,7 +508,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Evening: {product} in a social setting, dinner table or gathering with friends. Warm ambient lighting.', duration: 8, imageMode: 'reference', label: 'Evening' },
       { promptTemplate: 'Night: {product} in a calm nighttime scene. Soft lamp light, relaxation, end of a perfect day. {product_description}', duration: 8, imageMode: 'reference', label: 'Night' },
     ],
-    gradientColors: ['#fdcb6e', '#e17055'],
+    gradientColors: ['#a1c4fd', '#c2e9fb'],
     isNew: true,
   },
   {
@@ -528,7 +528,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Packing scene: {product} being placed into a stylish bag for a weekend trip. Excitement and anticipation. {product_description}', duration: 8, imageMode: 'start_frame', label: 'Packing' },
       { promptTemplate: 'Destination: {product} featured in a beautiful outdoor or resort setting. Stunning scenery, adventure vibes. {product_description}', duration: 8, imageMode: 'reference', label: 'Destination' },
     ],
-    gradientColors: ['#00cec9', '#0984e3'],
+    gradientColors: ['#f093fb', '#f5576c'],
   },
   // ═══════════════════════════════════════
   // FASHION & BEAUTY (12 templates)
@@ -546,7 +546,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#d63031'],
+    gradientColors: ['#f093fb', '#f5576c'],
     isPopular: true,
   },
   {
@@ -562,7 +562,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#ffeaa7', '#fab1a0'],
+    gradientColors: ['#ff9a9e', '#fecfef'],
   },
   {
     id: 'fb-street-style',
@@ -577,7 +577,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#dfe6e9'],
+    gradientColors: ['#a18cd1', '#fbc2eb'],
   },
   {
     id: 'fb-studio-portrait',
@@ -592,7 +592,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#fd79a8', '#e84393'],
+    gradientColors: ['#fa709a', '#fee140'],
   },
   {
     id: 'fb-accessories',
@@ -607,7 +607,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#6c5ce7', '#a29bfe'],
+    gradientColors: ['#c471f5', '#fa71cd'],
   },
   {
     id: 'fb-skincare-routine',
@@ -626,7 +626,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Clean bathroom counter with skincare products arranged beautifully. Soft morning light. {product} takes center stage. Spa-like atmosphere.', duration: 8, imageMode: 'start_frame', label: 'Setup' },
       { promptTemplate: 'Close-up of {product} being applied, showing texture and consistency. Dewy, glowing skin. {product_description}. Beauty tutorial aesthetic.', duration: 8, imageMode: 'reference', label: 'Application' },
     ],
-    gradientColors: ['#dfe6e9', '#74b9ff'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
     isNew: true,
   },
   {
@@ -642,7 +642,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#fdcb6e', '#e17055'],
+    gradientColors: ['#fccb90', '#d57eeb'],
   },
   {
     id: 'fb-color-pop',
@@ -657,7 +657,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#6c5ce7'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'fb-seasonal-lookbook',
@@ -678,7 +678,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Lifestyle scene: {product} worn or used in a trendy cafe or boutique. Street style photography feel. Natural lighting.', duration: 8, imageMode: 'reference', label: 'Lifestyle Shot' },
       { promptTemplate: 'Final beauty shot of {product} in dramatic lighting. Close-up details, textures highlighted. {product_description}. Campaign finale.', duration: 8, imageMode: 'reference', label: 'Beauty Close-up' },
     ],
-    gradientColors: ['#e84393', '#fd79a8'],
+    gradientColors: ['#667eea', '#764ba2'],
   },
   {
     id: 'fb-texture-close',
@@ -693,7 +693,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#b2bec3', '#636e72'],
+    gradientColors: ['#feada6', '#f5efef'],
   },
   {
     id: 'fb-boutique-display',
@@ -708,7 +708,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#a29bfe'],
+    gradientColors: ['#a1c4fd', '#c2e9fb'],
   },
   {
     id: 'fb-brand-story',
@@ -730,7 +730,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Fashion photoshoot scene with {product} as the star. Studio lights flashing, editorial photography happening. {product_description}', duration: 8, imageMode: 'reference', label: 'Photoshoot' },
       { promptTemplate: '{product} in its final glory — styled, lit, and photographed perfectly. Brand logo moment, campaign ready. {product_description}', duration: 8, imageMode: 'start_frame', label: 'Brand Finale' },
     ],
-    gradientColors: ['#2d3436', '#e84393'],
+    gradientColors: ['#f093fb', '#f5576c'],
     isPopular: true,
   },
 
@@ -750,7 +750,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#fdcb6e'],
+    gradientColors: ['#fccb90', '#d57eeb'],
     isPopular: true,
   },
   {
@@ -766,7 +766,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#00b894'],
+    gradientColors: ['#fa709a', '#fee140'],
   },
   {
     id: 'fd-steam-reveal',
@@ -781,7 +781,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#e17055'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'fd-table-setting',
@@ -796,7 +796,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#6c5ce7', '#fd79a8'],
+    gradientColors: ['#ffd89b', '#19547b'],
   },
   {
     id: 'fd-cocktail-mix',
@@ -811,7 +811,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#00cec9'],
+    gradientColors: ['#c471f5', '#fa71cd'],
     isNew: true,
   },
   {
@@ -827,7 +827,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#e17055', '#00b894'],
+    gradientColors: ['#feada6', '#f5efef'],
   },
   {
     id: 'fd-ingredient-cascade',
@@ -842,7 +842,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#00b894', '#fdcb6e'],
+    gradientColors: ['#ff9a9e', '#fecfef'],
   },
   {
     id: 'fd-sizzle-reel',
@@ -861,7 +861,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Fast-paced cooking action: sizzling pan, chopping, flames. {product} featured prominently. Kitchen energy, dramatic lighting.', duration: 8, imageMode: 'reference', label: 'Cooking Action' },
       { promptTemplate: 'Final plated result with {product}. Beautiful presentation, steam rising, ready to serve. {product_description}. Food photography perfection.', duration: 8, imageMode: 'start_frame', label: 'Final Plate' },
     ],
-    gradientColors: ['#e17055', '#d63031'],
+    gradientColors: ['#f77062', '#fe5196'],
     isPopular: true,
   },
   {
@@ -877,7 +877,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#ffeaa7'],
+    gradientColors: ['#fccb90', '#d57eeb'],
   },
   {
     id: 'fd-ice-cold',
@@ -892,7 +892,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#74b9ff', '#0984e3'],
+    gradientColors: ['#4facfe', '#00f2fe'],
   },
   {
     id: 'fd-farmers-market',
@@ -907,7 +907,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#00b894', '#fdcb6e'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'fd-recipe-story',
@@ -928,7 +928,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Plating the finished dish featuring {product}. Careful garnish placement, artistic arrangement on a beautiful plate.', duration: 8, imageMode: 'reference', label: 'Plating' },
       { promptTemplate: 'Final beauty shot: the completed recipe with {product}, ready to eat. Natural light, food styling perfection. {product_description}', duration: 8, imageMode: 'start_frame', label: 'Final Shot' },
     ],
-    gradientColors: ['#00b894', '#e17055'],
+    gradientColors: ['#fa709a', '#fee140'],
     isNew: true,
   },
 
@@ -948,7 +948,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#636e72'],
+    gradientColors: ['#667eea', '#764ba2'],
     isPopular: true,
   },
   {
@@ -964,7 +964,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0c0c0c', '#6c5ce7'],
+    gradientColors: ['#4facfe', '#00f2fe'],
   },
   {
     id: 'tg-hands-on',
@@ -979,7 +979,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#b2bec3'],
+    gradientColors: ['#48c6ef', '#6f86d6'],
   },
   {
     id: 'tg-holographic',
@@ -994,7 +994,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0c0c0c', '#00cec9'],
+    gradientColors: ['#43e97b', '#38f9d7'],
     isNew: true,
   },
   {
@@ -1014,7 +1014,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Wide shot establishing the creative workspace. Modern minimalist design, ambient lighting. {product} visible on the desk. Tech studio atmosphere.', duration: 8, imageMode: 'reference', label: 'Wide Establishing' },
       { promptTemplate: 'Close-up on {product} in the workspace. Hands interacting with it, screen glow reflecting. {product_description}. Detail-oriented tech review.', duration: 8, imageMode: 'start_frame', label: 'Product Focus' },
     ],
-    gradientColors: ['#2d3436', '#74b9ff'],
+    gradientColors: ['#a18cd1', '#fbc2eb'],
   },
   {
     id: 'tg-dark-moody',
@@ -1029,7 +1029,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#000000', '#2d3436'],
+    gradientColors: ['#667eea', '#764ba2'],
   },
   {
     id: 'tg-comparison',
@@ -1044,7 +1044,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#dfe6e9', '#b2bec3'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
   },
   {
     id: 'tg-charging-glow',
@@ -1059,7 +1059,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#0c0c0c', '#00b894'],
+    gradientColors: ['#c471f5', '#fa71cd'],
   },
   {
     id: 'tg-outdoor-rugged',
@@ -1074,7 +1074,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#e17055'],
+    gradientColors: ['#ffd89b', '#19547b'],
   },
   {
     id: 'tg-speed-test',
@@ -1089,7 +1089,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#d63031', '#e17055'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'tg-full-review',
@@ -1111,7 +1111,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Real-world use: {product} being used in a natural setting. Daily life integration, practical demonstration. {product_description}', duration: 8, imageMode: 'reference', label: 'Real World Use' },
       { promptTemplate: 'Final verdict: {product} beauty shot with dramatic lighting. The product in its best light, hero moment. {product_description}', duration: 8, imageMode: 'reference', label: 'Verdict' },
     ],
-    gradientColors: ['#2d3436', '#6c5ce7'],
+    gradientColors: ['#4facfe', '#00f2fe'],
     isPopular: true,
   },
   {
@@ -1127,7 +1127,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#dfe6e9', '#74b9ff'],
+    gradientColors: ['#a1c4fd', '#c2e9fb'],
   },
 
   // ═══════════════════════════════════════
@@ -1146,7 +1146,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0984e3', '#00cec9'],
+    gradientColors: ['#4facfe', '#00f2fe'],
     isPopular: true,
   },
   {
@@ -1162,7 +1162,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#dfe6e9'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'ta-city-skyline',
@@ -1177,7 +1177,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#fdcb6e'],
+    gradientColors: ['#ffd89b', '#19547b'],
   },
   {
     id: 'ta-road-trip',
@@ -1192,7 +1192,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#fdcb6e'],
+    gradientColors: ['#fa709a', '#fee140'],
   },
   {
     id: 'ta-sunset-silhouette',
@@ -1207,7 +1207,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#6c5ce7'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'ta-camping-fire',
@@ -1222,7 +1222,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#e17055'],
+    gradientColors: ['#fccb90', '#d57eeb'],
     isNew: true,
   },
   {
@@ -1238,7 +1238,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0984e3', '#00b894'],
+    gradientColors: ['#48c6ef', '#6f86d6'],
   },
   {
     id: 'ta-train-journey',
@@ -1253,7 +1253,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#00b894'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
   },
   {
     id: 'ta-aerial-adventure',
@@ -1268,7 +1268,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#00b894', '#636e72'],
+    gradientColors: ['#a1c4fd', '#c2e9fb'],
   },
   {
     id: 'ta-full-journey',
@@ -1289,7 +1289,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Arrival: {product} at the destination — beach, mountain, or cityscape. Epic reveal of the location. {product_description}', duration: 8, imageMode: 'reference', label: 'Arrival' },
       { promptTemplate: 'Golden hour: {product} featured in the most beautiful light of the trip. Sunset or sunrise, the perfect travel memory. {product_description}', duration: 8, imageMode: 'reference', label: 'Golden Moment' },
     ],
-    gradientColors: ['#0984e3', '#e17055'],
+    gradientColors: ['#667eea', '#764ba2'],
     isPopular: true,
   },
 
@@ -1309,7 +1309,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#2d3436', '#636e72'],
+    gradientColors: ['#48c6ef', '#6f86d6'],
   },
   {
     id: 'bc-desk-hero',
@@ -1324,7 +1324,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#b2bec3'],
+    gradientColors: ['#667eea', '#764ba2'],
     isPopular: true,
   },
   {
@@ -1340,7 +1340,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0c0c0c', '#0984e3'],
+    gradientColors: ['#4facfe', '#00f2fe'],
     isNew: true,
   },
   {
@@ -1356,7 +1356,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#6c5ce7'],
+    gradientColors: ['#c471f5', '#fa71cd'],
   },
   {
     id: 'bc-brand-wall',
@@ -1371,7 +1371,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#dfe6e9', '#b2bec3'],
+    gradientColors: ['#a1c4fd', '#c2e9fb'],
   },
   {
     id: 'bc-startup-office',
@@ -1386,7 +1386,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#00b894', '#fdcb6e'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'bc-data-viz',
@@ -1401,7 +1401,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#0c0c0c', '#00b894'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
   },
   {
     id: 'bc-team-collaboration',
@@ -1416,7 +1416,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#74b9ff', '#a29bfe'],
+    gradientColors: ['#a18cd1', '#fbc2eb'],
   },
   {
     id: 'bc-corporate-story',
@@ -1437,7 +1437,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'In action: {product} being used seamlessly in a professional environment. Productivity flowing, team collaboration. {product_description}', duration: 8, imageMode: 'reference', label: 'In Action' },
       { promptTemplate: 'Results: Success metrics and happy team. {product} as the centerpiece of business growth. Professional brand ending. {product_description}', duration: 8, imageMode: 'reference', label: 'Results' },
     ],
-    gradientColors: ['#2d3436', '#0984e3'],
+    gradientColors: ['#fccb90', '#d57eeb'],
   },
   {
     id: 'bc-trade-show',
@@ -1452,7 +1452,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#0984e3'],
+    gradientColors: ['#feada6', '#f5efef'],
   },
 
   // ═══════════════════════════════════════

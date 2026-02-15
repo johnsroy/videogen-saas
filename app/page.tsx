@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/landing/header'
 import { Hero } from '@/components/landing/hero'
+import { InteractiveDemo } from '@/components/landing/interactive-demo'
 import { SocialProof } from '@/components/landing/social-proof'
 import { Features } from '@/components/landing/features'
 import { UseCases } from '@/components/landing/use-cases'
@@ -23,6 +24,7 @@ export default async function Home() {
       <Header />
       <main className="flex-1">
         <Hero user={null} />
+        <InteractiveDemo />
         <SocialProof />
         <UseCases />
         <Features />

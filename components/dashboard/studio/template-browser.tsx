@@ -354,7 +354,7 @@ function TemplateCard({
   }
 
   function handleMouseEnter() {
-    hoverTimer.current = setTimeout(startPreview, 350)
+    hoverTimer.current = setTimeout(startPreview, 100)
   }
 
   function handleMouseLeave() {
@@ -375,10 +375,10 @@ function TemplateCard({
       <div className="relative h-36 overflow-hidden">
         {/* Base gradient — always visible, animates when previewing */}
         <div
-          className="absolute inset-[-50%]"
+          className="absolute inset-0"
           style={{
             background: `linear-gradient(135deg, ${template.gradientColors[0]}, ${template.gradientColors[1]}, ${template.gradientColors[0]})`,
-            backgroundSize: previewing ? '300% 300%' : '100% 100%',
+            backgroundSize: previewing ? '400% 400%' : '200% 200%',
             animation: previewing
               ? `tpl-gradient 4s ease infinite, ${cameraAnim} 5s ease-in-out infinite alternate`
               : 'none',
@@ -470,21 +470,29 @@ function TemplateCard({
         {/* ═══ Non-preview overlays ═══ */}
         {!previewing && (
           <>
+            {/* Radial highlight — makes gradient look intentional, not flat */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: 'radial-gradient(circle at 30% 40%, rgba(255,255,255,0.18), transparent 60%)',
+              }}
+            />
+
             {/* Light sweep on hover */}
-            <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.18] to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-full" />
+            <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.22] to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-full" />
 
             {/* Category icon watermark */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-[0.10] transition-all duration-500 group-hover:opacity-[0.20] group-hover:scale-110 group-hover:rotate-6">
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.25] transition-all duration-500 group-hover:opacity-[0.15] group-hover:scale-110">
               {categoryMeta && (
-                <span className="text-white" style={{ fontSize: '3.5rem' }}>
+                <span className="text-white drop-shadow-md" style={{ fontSize: '3rem' }}>
                   {getCategoryIcon(categoryMeta.icon)}
                 </span>
               )}
             </div>
 
-            {/* Play button */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover:opacity-100">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm border border-white/25 shadow-lg">
+            {/* Centered play hint — always subtly visible */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-30 transition-all duration-300 group-hover:opacity-100">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm border border-white/30 shadow-lg transition-all duration-300 group-hover:bg-white/25 group-hover:scale-110">
                 <Play className="h-4 w-4 text-white fill-white ml-0.5" />
               </div>
             </div>
@@ -518,11 +526,18 @@ function TemplateCard({
               )}
             </div>
 
-            {/* Duration badge */}
-            <div className="absolute bottom-2 left-2 transition-opacity duration-200 group-hover:opacity-0 z-10">
-              <Badge variant="secondary" className="bg-black/60 text-[10px] font-medium text-white shadow-sm">
-                {formatDuration(template.totalDurationSeconds)}
-              </Badge>
+            {/* Bottom bar: template name + duration */}
+            <div className="absolute bottom-0 left-0 right-0 z-10">
+              <div className="bg-gradient-to-t from-black/50 to-transparent px-2.5 pb-2 pt-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold text-white/90 truncate">
+                    {template.name}
+                  </p>
+                  <Badge variant="secondary" className="ml-1 shrink-0 bg-black/40 text-[9px] font-medium text-white/90 border-0">
+                    {formatDuration(template.totalDurationSeconds)}
+                  </Badge>
+                </div>
+              </div>
             </div>
           </>
         )}
