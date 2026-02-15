@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Play, ArrowRight, Sparkles } from 'lucide-react'
+import { RotatingHeroContent } from './rotating-hero-text'
 import type { User } from '@supabase/supabase-js'
 
 interface HeroProps {
@@ -29,19 +30,8 @@ export function Hero({ user }: HeroProps) {
             <span>Powered by AI Actors & Google Veo 3.1</span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            Create winning ads{' '}
-            <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
-              with AI
-            </span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Use our library of AI Actors, or create your own AI Avatar.
-            Generate UGC-style ads at scale — no actors, no studios, no limits.
-          </p>
+          {/* Headline + Subheadline with rotating words */}
+          <RotatingHeroContent />
 
           {/* CTA Buttons */}
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
