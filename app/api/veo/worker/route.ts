@@ -26,7 +26,9 @@ interface StoredSegment {
 }
 
 interface SegmentData {
-  type: 'extended' | 'template_multi'
+  type: 'extended' | 'template_multi' | 'extension_multi'
+  /** Original video URL to prepend (for extension_multi type) */
+  originalVideoUrl?: string
   segments: StoredSegment[]
   params: {
     aspectRatio: VeoAspectRatio
@@ -125,7 +127,12 @@ export async function POST(request: Request) {
         .eq('id', jobId)
 
       const completedSegments = [...segments].sort((a, b) => a.index - b.index)
-      const videoUris = completedSegments.map((s) => s.videoUri!).filter(Boolean)
+      const segmentUris = completedSegments.map((s) => s.videoUri!).filter(Boolean)
+
+      // For extension_multi: prepend original video before new segments
+      const videoUris = segmentData.type === 'extension_multi' && segmentData.originalVideoUrl
+        ? [segmentData.originalVideoUrl, ...segmentUris]
+        : segmentUris
 
       const composedBuffer = await concatenateVideos(videoUris, {
         upscale4K: composition.isStandard,

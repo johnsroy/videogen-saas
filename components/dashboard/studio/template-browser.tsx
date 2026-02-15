@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -140,6 +140,17 @@ export function TemplateBrowser({
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | 'all'>('all')
   const [selectedTier, setSelectedTier] = useState<TemplateDurationTier | 'all'>('all')
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+
+  // Fetch template preview URLs on mount
+  useEffect(() => {
+    fetch('/api/veo/template-previews')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.previews) setPreviewUrls(data.previews)
+      })
+      .catch(() => {})
+  }, [])
 
   const filteredTemplates = useMemo(() => {
     let result = SHOT_TEMPLATES
@@ -261,6 +272,7 @@ export function TemplateBrowser({
           <TemplateCard
             key={template.id}
             template={template}
+            previewUrl={previewUrls[template.id]}
             onClick={() => onSelectTemplate(template)}
           />
         ))}
@@ -305,19 +317,40 @@ export function TemplateBrowser({
 
 function TemplateCard({
   template,
+  previewUrl,
   onClick,
 }: {
   template: ShotTemplate
+  previewUrl?: string
   onClick: () => void
 }) {
   const [previewing, setPreviewing] = useState(false)
   const [sceneIndex, setSceneIndex] = useState(0)
   const [videoLoaded, setVideoLoaded] = useState(false)
+  const [videoMounted, setVideoMounted] = useState(false)
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(null)
   const sceneTimer = useRef<ReturnType<typeof setInterval>>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const cardRef = useRef<HTMLButtonElement>(null)
   const categoryMeta = TEMPLATE_CATEGORIES.find((c) => c.id === template.category)
-  const hasVideoPreview = !!template.previewVideoUrl
+  const videoPreviewUrl = previewUrl || template.previewVideoUrl
+  const hasVideoPreview = !!videoPreviewUrl
+
+  // Lazy mount video element via IntersectionObserver — Netflix optimization
+  useEffect(() => {
+    if (!hasVideoPreview || !cardRef.current) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVideoMounted(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [hasVideoPreview])
 
   // Extract scene descriptions from the template for animated text overlay
   const sceneDescriptions = useMemo(() => {
@@ -371,7 +404,9 @@ function TemplateCard({
   }
 
   function handleMouseEnter() {
-    hoverTimer.current = setTimeout(startPreview, 100)
+    // Netflix-style delay: 500ms for video previews, 100ms for gradient animation
+    const delay = hasVideoPreview ? 500 : 100
+    hoverTimer.current = setTimeout(startPreview, delay)
   }
 
   function handleMouseLeave() {
@@ -381,6 +416,7 @@ function TemplateCard({
 
   return (
     <button
+      ref={cardRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
@@ -390,20 +426,27 @@ function TemplateCard({
     >
       {/* Preview area */}
       <div className="relative h-36 overflow-hidden">
-        {/* Video preview element — preloaded when URL exists */}
-        {hasVideoPreview && (
+        {/* Video preview element — lazy-mounted via IntersectionObserver */}
+        {hasVideoPreview && videoMounted && (
           <video
             ref={videoRef}
-            src={template.previewVideoUrl}
+            src={videoPreviewUrl}
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             onLoadedData={() => setVideoLoaded(true)}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
               previewing && videoLoaded ? 'opacity-100 z-10' : 'opacity-0'
             }`}
           />
+        )}
+
+        {/* Loading spinner — shows while video is loading on hover */}
+        {previewing && hasVideoPreview && !videoLoaded && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          </div>
         )}
 
         {/* Base gradient — always visible as fallback, animates when previewing (no video) */}

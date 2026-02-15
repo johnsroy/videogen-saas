@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -8,12 +8,46 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Maximize2, Loader2, Sparkles, Play } from 'lucide-react'
+import { Maximize2, Loader2, Sparkles, Play, Clock, Film, Info } from 'lucide-react'
 import type { VideoRecord } from '@/lib/heygen-types'
+
+const EXTENSION_OPTIONS = [
+  { value: 4, label: '+4s', group: 'Quick' },
+  { value: 6, label: '+6s', group: 'Quick' },
+  { value: 8, label: '+8s', group: 'Quick' },
+  { value: 15, label: '+15s', group: 'Short', segments: 2 },
+  { value: 30, label: '+30s', group: 'Short', segments: 4 },
+  { value: 60, label: '+1 min', group: 'Medium', segments: 8 },
+  { value: 120, label: '+2 min', group: 'Medium', segments: 15 },
+  { value: 300, label: '+5 min', group: 'Long', segments: 38 },
+  { value: 600, label: '+10 min', group: 'Long', segments: 75 },
+  { value: 900, label: '+15 min', group: 'Long', segments: 113 },
+  { value: 1200, label: '+20 min', group: 'Long', segments: 150 },
+] as const
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  if (mins >= 60) {
+    const hrs = Math.floor(mins / 60)
+    const remainMins = mins % 60
+    return remainMins > 0 ? `${hrs}h ${remainMins}m` : `${hrs}h`
+  }
+  return secs > 0 ? `${mins}m ${secs}s` : `${mins} min`
+}
+
+function formatTimelineWidth(original: number, extension: number): number {
+  const total = original + extension
+  if (total === 0) return 50
+  return Math.max(10, Math.min(90, (original / total) * 100))
+}
 
 interface SceneExtenderProps {
   onVideoCreated: (video: Record<string, unknown>) => void
@@ -29,6 +63,12 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
   const [error, setError] = useState<string | null>(null)
 
   const selectedVideo = videos.find((v) => v.id === selectedVideoId) ?? null
+  const isLongExtension = extendDuration > 8
+  const selectedOption = EXTENSION_OPTIONS.find((o) => o.value === extendDuration)
+  const segmentCount = selectedOption && 'segments' in selectedOption ? selectedOption.segments : (extendDuration <= 8 ? 1 : Math.ceil(extendDuration / 8))
+
+  // Credit cost estimate (2 credits/sec for standard model)
+  const creditCost = useMemo(() => Math.max(1, Math.ceil(extendDuration * 2)), [extendDuration])
 
   useEffect(() => {
     async function loadVideos() {
@@ -73,6 +113,9 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
       }
       onVideoCreated(data.video)
       setPrompt('')
+
+      // Dispatch event so gallery updates
+      window.dispatchEvent(new CustomEvent('video-created', { detail: data.video }))
     } catch {
       setError('Failed to extend video')
     } finally {
@@ -88,7 +131,7 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
           Scene Extender
         </CardTitle>
         <CardDescription>
-          Select a completed Veo video and extend it with new content.
+          Select a completed Veo video and extend it with new content — from a few seconds up to 20 minutes.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -113,7 +156,13 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
                 <SelectContent>
                   {videos.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
-                      {v.title} ({v.duration ? `${v.duration}s` : 'unknown duration'})
+                      <div className="flex items-center gap-2">
+                        <Film className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="truncate">{v.title}</span>
+                        <span className="text-muted-foreground text-xs shrink-0">
+                          ({v.duration ? formatDuration(v.duration) : 'video'})
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -139,21 +188,21 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
 
                 {/* Timeline visualization */}
                 <div className="space-y-1">
-                  <div className="flex h-6 overflow-hidden rounded-full">
+                  <div className="flex h-7 overflow-hidden rounded-full">
                     <div
-                      className="flex items-center justify-center bg-primary/80 text-[10px] font-medium text-primary-foreground"
+                      className="flex items-center justify-center bg-primary/80 text-[10px] font-medium text-primary-foreground transition-all duration-300"
                       style={{
-                        width: `${selectedVideo.duration ? (selectedVideo.duration / (selectedVideo.duration + extendDuration)) * 100 : 50}%`,
+                        width: `${formatTimelineWidth(selectedVideo.duration ?? 8, extendDuration)}%`,
                       }}
                     >
-                      Original {selectedVideo.duration ? `${selectedVideo.duration}s` : ''}
+                      Original {selectedVideo.duration ? formatDuration(selectedVideo.duration) : ''}
                     </div>
                     <div className="flex flex-1 items-center justify-center bg-primary/30 text-[10px] font-medium text-primary animate-pulse">
-                      +{extendDuration}s extension
+                      +{formatDuration(extendDuration)} extension
                     </div>
                   </div>
                   <p className="text-center text-[10px] text-muted-foreground">
-                    Total: ~{(selectedVideo.duration ?? 0) + extendDuration}s
+                    Total: ~{formatDuration((selectedVideo.duration ?? 0) + extendDuration)}
                   </p>
                 </div>
               </div>
@@ -172,20 +221,85 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
 
             <div className="space-y-1.5">
               <Label className="text-xs">Extension Duration</Label>
-              <div className="flex gap-2">
-                {[4, 6, 8].map((d) => (
-                  <Button
-                    key={d}
-                    type="button"
-                    variant={extendDuration === d ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setExtendDuration(d)}
-                  >
-                    +{d}s
-                  </Button>
-                ))}
-              </div>
+              <Select
+                value={String(extendDuration)}
+                onValueChange={(v) => setExtendDuration(Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Quick Extensions</SelectLabel>
+                    {EXTENSION_OPTIONS.filter((o) => o.group === 'Quick').map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>Short Extensions</SelectLabel>
+                    {EXTENSION_OPTIONS.filter((o) => o.group === 'Short').map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label} ({o.segments} clips)
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>Medium Extensions</SelectLabel>
+                    {EXTENSION_OPTIONS.filter((o) => o.group === 'Medium').map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label} ({o.segments} clips)
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>Long Extensions</SelectLabel>
+                    {EXTENSION_OPTIONS.filter((o) => o.group === 'Long').map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label} ({o.segments} clips)
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Info box for long extensions */}
+            {isLongExtension && (
+              <div className="rounded-lg border bg-muted/50 p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-medium">
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                  Multi-Clip Extension
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  This extension will generate {segmentCount} clips and concatenate them with your
+                  original video. Generation runs in the background — you can close this page.
+                </p>
+                <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5">
+                  <span className="flex items-center gap-1">
+                    <Film className="h-3 w-3" />
+                    {segmentCount} clips
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    ~{Math.ceil(segmentCount * 1.5)} min to generate
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    {creditCost} credits
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Credit cost for short extensions */}
+            {!isLongExtension && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                {creditCost} credits
+              </p>
+            )}
 
             {error && (
               <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -201,12 +315,12 @@ export function SceneExtender({ onVideoCreated }: SceneExtenderProps) {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Extending...
+                  {isLongExtension ? 'Starting extension...' : 'Extending...'}
                 </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Extend Video
+                  Extend Video {isLongExtension ? `(${segmentCount} clips)` : `(+${formatDuration(extendDuration)})`}
                 </>
               )}
             </Button>
