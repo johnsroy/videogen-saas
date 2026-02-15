@@ -16,11 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { AvatarPicker } from './avatar-picker'
 import { VoicePicker } from './voice-picker'
 import { ScriptAiTools } from './script-ai-tools'
-import { Video, Wand2, Loader2, Sparkles, Zap, Coins, Lock, ArrowUpRight, Volume2, BrainCircuit, RefreshCw } from 'lucide-react'
+import { Video, Wand2, Loader2, Sparkles, Zap, Coins, Lock, ArrowUpRight, Volume2, BrainCircuit, ChevronDown } from 'lucide-react'
 import { canGenerateVideo, getVideoLimit, canUseVeo } from '@/lib/plan-utils'
+import { VEO_ENHANCEMENT_LABELS } from '@/lib/ai-prompts'
 import { UpgradeModal } from './upgrade-modal'
 import { cn } from '@/lib/utils'
 import type { PlanId } from '@/lib/plans'
@@ -36,12 +44,11 @@ interface VideoGenerationCardProps {
 }
 
 export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth, creditsRemaining = 0 }: VideoGenerationCardProps) {
-  const [mode, setMode] = useState<'avatar' | 'prompt' | 'veo'>('avatar')
+  const [mode, setMode] = useState<'avatar' | 'veo'>('avatar')
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [script, setScript] = useState('')
-  const [prompt, setPrompt] = useState('')
   const [dimension, setDimension] = useState('1280x720')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,8 +88,10 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
         setMode('avatar')
         setScript(video.script)
       } else if (video.prompt) {
-        setMode('prompt')
-        setPrompt(video.prompt)
+        // No prompt tab anymore — use veo tab for prompt-based remixes
+        setMode('veo')
+        setVeoTitle(video.title + ' (Remix)')
+        setVeoPrompt(video.prompt)
       }
       if (video.avatar_id) setSelectedAvatar(video.avatar_id)
       if (video.voice_id) setSelectedVoice(video.voice_id)
@@ -101,9 +110,7 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
     !isGenerating &&
     !limitReached &&
     title.trim().length > 0 &&
-    (mode === 'avatar'
-      ? selectedAvatar && selectedVoice && script.trim().length > 0
-      : prompt.trim().length > 0)
+    selectedAvatar && selectedVoice && script.trim().length > 0
 
   const canGenerateVeo =
     !isGenerating &&
@@ -130,18 +137,18 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
     }
   }
 
-  async function handleEnhanceVeoPrompt() {
+  async function handleEnhanceVeoPrompt(style: string) {
     if (!veoPrompt.trim()) return
     setIsEnhancingPrompt(true)
     try {
       const res = await fetch('/api/ai/enhance-veo-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: veoPrompt.trim(), style: 'cinematic' }),
+        body: JSON.stringify({ prompt: veoPrompt.trim(), style }),
       })
       const data = await res.json()
-      if (res.ok && data.prompt) {
-        setVeoPrompt(data.prompt)
+      if (res.ok && data.enhanced_prompt) {
+        setVeoPrompt(data.enhanced_prompt)
       }
     } catch { /* ignore */ } finally {
       setIsEnhancingPrompt(false)
@@ -155,11 +162,7 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
       const res = await fetch('/api/heygen/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          mode === 'avatar'
-            ? { mode, title, avatar_id: selectedAvatar, voice_id: selectedVoice, script, dimension }
-            : { mode, title, prompt, dimension }
-        ),
+        body: JSON.stringify({ mode: 'avatar', title, avatar_id: selectedAvatar, voice_id: selectedVoice, script, dimension }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -171,7 +174,6 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
       // Reset form
       setTitle('')
       setScript('')
-      setPrompt('')
     } catch {
       setError('Failed to generate video')
     } finally {
@@ -185,9 +187,7 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
     setError(null)
 
     try {
-      const finalPrompt = veoAudio
-        ? `${veoPrompt.trim()}`
-        : veoPrompt.trim()
+      const finalPrompt = veoPrompt.trim()
 
       const endpoint = isVeoExtended ? '/api/veo/generate-extended' : '/api/veo/generate'
 
@@ -233,15 +233,11 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="avatar" onValueChange={(v) => setMode(v as 'avatar' | 'prompt' | 'veo')}>
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="avatar" onValueChange={(v) => setMode(v as 'avatar' | 'veo')}>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="avatar" className="flex items-center gap-2">
               <Video className="h-4 w-4" />
               Avatar
-            </TabsTrigger>
-            <TabsTrigger value="prompt" className="flex items-center gap-2">
-              <Wand2 className="h-4 w-4" />
-              Prompt
             </TabsTrigger>
             <TabsTrigger value="veo" className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
@@ -298,57 +294,6 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
                 </SelectContent>
               </Select>
             </div>
-          </TabsContent>
-
-          <TabsContent value="prompt" className="mt-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="prompt-title">Title</Label>
-              <Input
-                id="prompt-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="My Video"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="prompt-text">Describe your video</Label>
-                <span className="text-xs text-muted-foreground">{prompt.length}/5000</span>
-              </div>
-              <Textarea
-                id="prompt-text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                maxLength={5000}
-                rows={5}
-                placeholder="A friendly presenter explaining the benefits of our product in a professional studio setting..."
-              />
-              <ScriptAiTools
-                currentScript={prompt}
-                onScriptChange={setPrompt}
-                planId={planId}
-                aiUsageThisMonth={aiUsageThisMonth}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Aspect Ratio</Label>
-              <Select value={dimension} onValueChange={setDimension}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1280x720">Landscape (16:9)</SelectItem>
-                  <SelectItem value="720x1280">Portrait (9:16)</SelectItem>
-                  <SelectItem value="720x720">Square (1:1)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              An avatar and voice will be automatically selected. Your description will be used as the script.
-            </p>
           </TabsContent>
 
           {/* Veo 3 AI Video Tab */}
@@ -417,23 +362,37 @@ export function VideoGenerationCard({ planId, videosThisMonth, aiUsageThisMonth,
                       ) : (
                         <BrainCircuit className="mr-1 h-3 w-3" />
                       )}
-                      AI Generate from Title
+                      AI Generate
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      disabled={!veoPrompt.trim() || isEnhancingPrompt}
-                      onClick={handleEnhanceVeoPrompt}
-                    >
-                      {isEnhancingPrompt ? (
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      ) : (
-                        <RefreshCw className="mr-1 h-3 w-3" />
-                      )}
-                      Enhance Prompt
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={!veoPrompt.trim() || isEnhancingPrompt}
+                        >
+                          {isEnhancingPrompt ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Wand2 className="mr-1 h-3 w-3" />
+                          )}
+                          Enhance
+                          <ChevronDown className="ml-1 h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {Object.entries(VEO_ENHANCEMENT_LABELS).map(([key, label], idx) => (
+                          <span key={key}>
+                            {idx === 4 && <DropdownMenuSeparator />}
+                            <DropdownMenuItem onClick={() => handleEnhanceVeoPrompt(key)}>
+                              {label}
+                            </DropdownMenuItem>
+                          </span>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
 

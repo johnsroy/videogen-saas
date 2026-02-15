@@ -14,6 +14,13 @@ export function Hero({ user }: HeroProps) {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted))_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
 
+      {/* Floating gradient orbs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-20 left-[15%] h-64 w-64 rounded-full bg-primary/[0.04] blur-3xl animate-float-orb" />
+        <div className="absolute top-32 right-[10%] h-48 w-48 rounded-full bg-primary/[0.06] blur-3xl animate-float-orb-slow" />
+        <div className="absolute bottom-10 left-[40%] h-56 w-56 rounded-full bg-primary/[0.03] blur-3xl animate-float-orb" style={{ animationDelay: '-8s' }} />
+      </div>
+
       <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-36">
         <div className="mx-auto max-w-3xl text-center">
           {/* Badge */}

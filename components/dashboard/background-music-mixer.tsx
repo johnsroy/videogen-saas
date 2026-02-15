@@ -15,10 +15,10 @@ interface PresetTrack {
 }
 
 const PRESET_TRACKS: PresetTrack[] = [
-  { id: 'upbeat', label: 'Upbeat', file: '/audio/upbeat.wav', mood: 'Energetic & positive' },
-  { id: 'corporate', label: 'Corporate', file: '/audio/corporate.wav', mood: 'Professional & clean' },
-  { id: 'calm', label: 'Calm', file: '/audio/calm.wav', mood: 'Relaxing & peaceful' },
-  { id: 'energetic', label: 'Energetic', file: '/audio/energetic.wav', mood: 'High energy & exciting' },
+  { id: 'cinematic-score', label: 'Cinematic Score', file: '/audio/corporate.wav', mood: 'Sweeping orchestral' },
+  { id: 'epic-orchestra', label: 'Epic Orchestra', file: '/audio/energetic.wav', mood: 'Powerful & heroic' },
+  { id: 'ambient-soundscape', label: 'Ambient Soundscape', file: '/audio/calm.wav', mood: 'Serene & atmospheric' },
+  { id: 'corporate-anthem', label: 'Corporate Anthem', file: '/audio/upbeat.wav', mood: 'Uplifting & professional' },
 ]
 
 interface AiTrack {
@@ -55,6 +55,8 @@ export function BackgroundMusicMixer({
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiTracks, setAiTracks] = useState<AiTrack[]>([])
   const [credits, setCredits] = useState(creditsRemaining)
+  const [isEnhancing, setIsEnhancing] = useState(false)
+  const [enhanceError, setEnhanceError] = useState<string | null>(null)
 
   // Sync music playback with video play/pause
   useEffect(() => {
@@ -153,6 +155,32 @@ export function BackgroundMusicMixer({
   function handleVolumeChange(v: number) {
     setVolume(v)
     onVolumeChanged?.(v)
+  }
+
+  async function handleEnhancePrompt() {
+    if (!aiPrompt.trim()) return
+    setIsEnhancing(true)
+    setEnhanceError(null)
+
+    try {
+      const res = await fetch('/api/music/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setEnhanceError(data.error || 'Failed to enhance prompt')
+        return
+      }
+
+      setAiPrompt(data.enhanced_prompt)
+    } catch {
+      setEnhanceError('Failed to enhance prompt. Please try again.')
+    } finally {
+      setIsEnhancing(false)
+    }
   }
 
   async function handleGenerateMusic() {
@@ -255,7 +283,7 @@ export function BackgroundMusicMixer({
             onChange={(e) => setAiPrompt(e.target.value)}
             rows={2}
             maxLength={500}
-            placeholder='e.g. "Upbeat electronic music with a driving beat, perfect for a tech product showcase"'
+            placeholder='e.g. "Cinematic orchestral score with building tension for a product launch video"'
             className="text-xs resize-none"
           />
           <div className="flex items-center gap-2">
@@ -271,6 +299,22 @@ export function BackgroundMusicMixer({
               <option value={20}>20s</option>
               <option value={30}>30s</option>
             </select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleEnhancePrompt}
+              disabled={!aiPrompt.trim() || isEnhancing}
+              className="h-6 text-[10px] px-2"
+              title="Enhance prompt with AI (free)"
+            >
+              {isEnhancing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1 h-3 w-3" />
+              )}
+              Enhance
+            </Button>
             <Button
               size="sm"
               onClick={handleGenerateMusic}
@@ -295,7 +339,7 @@ export function BackgroundMusicMixer({
             </div>
           </div>
         </div>
-        {aiError && <p className="text-[10px] text-destructive">{aiError}</p>}
+        {(aiError || enhanceError) && <p className="text-[10px] text-destructive">{aiError || enhanceError}</p>}
 
         {/* AI Generated Tracks */}
         {aiTracks.length > 0 && (

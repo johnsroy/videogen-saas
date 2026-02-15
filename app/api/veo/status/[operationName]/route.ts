@@ -98,8 +98,15 @@ export async function GET(
     const elapsed = Date.now() - createdAt
     const timeoutMs = getTimeoutMs(video.veo_model)
 
+    // Warn when approaching timeout
+    const elapsedMin = Math.round(elapsed / 60_000)
+    if (elapsed > timeoutMs * 0.75 && elapsed <= timeoutMs) {
+      console.warn(`Video ${video.id}: ${elapsedMin}min elapsed, approaching ${Math.round(timeoutMs / 60_000)}min timeout`)
+    }
+
     if (elapsed > timeoutMs) {
       const timeoutMin = Math.round(timeoutMs / 60_000)
+      console.warn(`Video ${video.id}: timed out after ${timeoutMin}min, auto-cancelling and refunding ${video.credits_used} credits`)
       const updates = {
         status: 'failed',
         error_message: `Generation timed out after ${timeoutMin} minutes. Credits have been refunded.`,

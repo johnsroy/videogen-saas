@@ -54,7 +54,7 @@ export function Footer() {
             </div>
           ))}
         </div>
-        <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
+        <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground" suppressHydrationWarning>
           &copy; {new Date().getFullYear()} VideoGen. All rights reserved.
         </div>
       </div>

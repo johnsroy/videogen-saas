@@ -116,6 +116,38 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+@keyframes float-orb {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); }
+  25% { transform: translateY(-20px) translateX(10px) scale(1.05); }
+  50% { transform: translateY(-10px) translateX(-15px) scale(0.95); }
+  75% { transform: translateY(-25px) translateX(5px) scale(1.02); }
+}
+
+@keyframes float-orb-slow {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); }
+  33% { transform: translateY(-15px) translateX(-10px) scale(1.03); }
+  66% { transform: translateY(-8px) translateX(12px) scale(0.97); }
+}
+
+@keyframes gradient-bg-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-float-orb {
+  animation: float-orb 20s ease-in-out infinite;
+}
+
+.animate-float-orb-slow {
+  animation: float-orb-slow 25s ease-in-out infinite;
+}
+
+.animate-gradient-bg {
+  animation: gradient-bg-shift 15s ease infinite;
+  background-size: 200% 200%;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

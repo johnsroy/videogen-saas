@@ -140,6 +140,9 @@ export async function extendVeoVideo(
       ...(params.extendDurationSeconds && {
         durationSeconds: params.extendDurationSeconds,
       }),
+      ...(params.generateAudio !== undefined && {
+        generateAudio: params.generateAudio,
+      }),
       // personGeneration: 'allow_adult', — not supported on all Veo preview models
     },
   })

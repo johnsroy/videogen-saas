@@ -43,6 +43,8 @@ export interface VeoExtendParams {
   prompt: string
   /** Target total duration after extension */
   extendDurationSeconds?: number
+  /** Whether to generate audio with the extended video */
+  generateAudio?: boolean
 }
 
 export interface VeoOperationResult {

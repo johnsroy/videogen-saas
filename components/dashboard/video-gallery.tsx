@@ -15,8 +15,9 @@ function getPollingInterval(oldestPendingCreatedAt: string): number {
   const minutes = elapsed / 60_000
   if (minutes < 2) return 10_000   // First 2 min: every 10s
   if (minutes < 5) return 15_000   // 2-5 min: every 15s
-  if (minutes < 10) return 30_000  // 5-10 min: every 30s
-  return 60_000                    // 10+ min: every 60s
+  if (minutes < 10) return 20_000  // 5-10 min: every 20s
+  if (minutes < 15) return 15_000  // 10-15 min: every 15s (critical pre-timeout window)
+  return 10_000                    // 15+ min: every 10s (aggressive near auto-cancel)
 }
 
 interface VideoGalleryProps {

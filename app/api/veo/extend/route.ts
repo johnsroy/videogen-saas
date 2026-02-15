@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { videoId, prompt, extendDurationSeconds = 8 } = body
+    const { videoId, prompt, extendDurationSeconds = 8, generateAudio = false } = body
 
     if (!videoId || typeof videoId !== 'string') {
       return NextResponse.json({ error: 'videoId is required' }, { status: 400 })
@@ -125,6 +125,7 @@ export async function POST(request: Request) {
           videoUri: parentVideo.video_url,
           prompt: prompt.trim(),
           extendDurationSeconds,
+          generateAudio,
         })
 
         const { data: videoRecord, error: dbError } = await getSupabaseAdmin()
@@ -142,7 +143,7 @@ export async function POST(request: Request) {
             credits_used: creditsCost,
             veo_operation_name: result.operationName,
             veo_model: veoModel,
-            audio_enabled: parentVideo.audio_enabled,
+            audio_enabled: generateAudio,
             extend_count: (parentVideo.extend_count ?? 0) + 1,
             parent_video_id: videoId,
             duration: (parentVideo.duration ?? 0) + extendDurationSeconds,
@@ -191,7 +192,7 @@ export async function POST(request: Request) {
         dimension,
         credits_used: creditsCost,
         veo_model: veoModel,
-        audio_enabled: parentVideo.audio_enabled,
+        audio_enabled: generateAudio,
         extend_count: (parentVideo.extend_count ?? 0) + 1,
         parent_video_id: videoId,
         duration: totalDuration,
@@ -228,7 +229,7 @@ export async function POST(request: Request) {
       params: {
         aspectRatio,
         model: veoModel,
-        generateAudio: parentVideo.audio_enabled ?? false,
+        generateAudio,
         negativePrompt: null,
         productImages: null,
       },

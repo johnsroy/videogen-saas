@@ -281,6 +281,18 @@ export const VEO_ENHANCEMENT_PROMPTS: Record<string, string> = {
   dynamic: `Rewrite this video prompt to have more motion and energy. Add faster camera movements, dynamic action, dramatic reveals, and visual rhythm. Make it feel kinetic and exciting. Output ONLY the rewritten prompt text, no explanations.`,
 
   minimal: `Simplify this video prompt while keeping it effective. Focus on the most impactful visual elements — one strong camera movement, clean composition, clear subject. Remove unnecessary details. Keep it under 150 words. Output ONLY the rewritten prompt text, no explanations.`,
+
+  professional: `Rewrite this video prompt to feel polished and corporate-ready. Use steady camera movements, clean compositions, neutral color grading, and professional lighting. The result should feel like a high-end brand advertisement or corporate promo. Output ONLY the rewritten prompt text, no explanations.`,
+
+  casual: `Rewrite this video prompt to feel more relaxed and approachable. Use natural camera movements, warm tones, candid framing, and authentic-feeling lighting. The result should feel like organic, user-generated content or a casual vlog. Output ONLY the rewritten prompt text, no explanations.`,
+
+  grammar: `Fix any grammar, spelling, punctuation, or awkward phrasing in this video prompt. Maintain the original intent and all visual details — only correct language errors. If the prompt is already correct, return it unchanged. Output ONLY the corrected prompt text, no explanations.`,
+
+  shorter: `Condense this video prompt to its essential elements. Keep the core concept, main camera movement, and key visual details, but remove redundancy and trim to under 80 words. Output ONLY the shortened prompt text, no explanations.`,
+
+  longer: `Expand this video prompt with more specific visual details. Add descriptions for lighting quality, color palette, textures, background elements, camera speed, and transitions. Double the detail while keeping the same concept. Output ONLY the expanded prompt text, no explanations.`,
+
+  hook_cta: `Rewrite this video prompt to start with an attention-grabbing hook (first 2 seconds) and end with a clear call-to-action visual. The hook should create curiosity or impact — a dramatic reveal, bold text overlay, or striking visual. The ending should guide the viewer toward action. Output ONLY the rewritten prompt text, no explanations.`,
 }
 
 export const VEO_ENHANCEMENT_LABELS: Record<string, string> = {
@@ -288,6 +300,12 @@ export const VEO_ENHANCEMENT_LABELS: Record<string, string> = {
   atmospheric: 'More Atmospheric',
   dynamic: 'More Dynamic',
   minimal: 'Simplify',
+  professional: 'Make Professional',
+  casual: 'Make Casual',
+  grammar: 'Fix Grammar',
+  shorter: 'Make Shorter',
+  longer: 'Make Longer',
+  hook_cta: 'Add Hook & CTA',
 }
 
 export function buildVeoGeneratePrompt(params: {
@@ -402,3 +420,37 @@ export function buildAnalyticsInsightsPrompt(data: {
 
 Generate 4 actionable insights based on this data.`
 }
+
+// ── Music Prompt Enhancer ──
+
+export const MUSIC_PROMPT_ENHANCER_SYSTEM = `You are a professional music producer and sound designer specializing in AI music generation prompts. Enhance user prompts to produce the best possible AI-generated background music for video production.
+
+Your enhanced prompts should include precise musical production details:
+
+1. **Tempo & Time Signature**: Specific BPM and feel (e.g., "120 BPM, 4/4 time, driving eighth-note feel")
+2. **Key & Tonality**: Musical key and mode (e.g., "D minor, Dorian mode" or "C major, bright and resolved")
+3. **Instrumentation**: Specific instruments and their roles (e.g., "fingerpicked acoustic guitar lead, warm Rhodes electric piano pads, upright bass walking line, brushed snare drum")
+4. **Dynamics & Structure**: How the energy evolves (e.g., "starts sparse and intimate, builds with layered strings into a full crescendo at the midpoint, then pulls back to a gentle outro")
+5. **Production Style**: Mixing and texture references (e.g., "warm analog saturation, wide stereo field, subtle tape hiss, reverb tail on the snare")
+6. **Mood & Emotion**: Emotional arc beyond just a label (e.g., "nostalgic and bittersweet, like watching a sunset alone" rather than just "sad")
+7. **Genre References**: Specific sub-genre or artist influences when helpful (e.g., "Hans Zimmer-style tension building" or "Tycho-style ambient electronic")
+
+Rules:
+- Keep the user's core musical intent — enhance, don't change the concept
+- Add 3-5 specific production details the user likely omitted
+- Be precise with instrument names (not "strings" but "legato cello with pizzicato violins")
+- Include at least one dynamic/structural direction
+- Output ONLY the enhanced prompt text, no explanations or formatting
+- Keep it under 300 words — concise but rich`
+
+export function buildMusicEnhancePrompt(rawPrompt: string): string {
+  return `Enhance this AI music generation prompt with professional production details:\n\n"${rawPrompt}"`
+}
+
+export const MUSIC_PROMPT_SUGGESTIONS: string[] = [
+  'Cinematic orchestral score with building tension for a product launch video',
+  'Upbeat electronic track with clean synths for a tech startup explainer',
+  'Warm acoustic guitar and piano for a heartfelt testimonial video',
+  'Dark, pulsing synthwave for a futuristic brand trailer',
+  'Light jazz with brushed drums for a lifestyle brand montage',
+]

@@ -54,6 +54,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#667eea', '#764ba2'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/1227/1227-720.mp4',
     isPopular: true,
   },
   {
@@ -70,6 +71,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#f093fb', '#f5576c'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4888/4888-720.mp4',
     isPopular: true,
   },
   {
@@ -117,6 +119,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#4facfe', '#00f2fe'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4814/4814-720.mp4',
     isPopular: true,
   },
   {
@@ -286,6 +289,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Final hero shot of {product} with brand-style ending. Clean composition, the product perfectly lit. Call to action moment. {product_description}', duration: 8, imageMode: 'reference', label: 'CTA Finale' },
     ],
     gradientColors: ['#ff9a9e', '#fecfef'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/3040/3040-720.mp4',
     isPopular: true,
   },
 
@@ -306,6 +310,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#fccb90', '#d57eeb'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4922/4922-720.mp4',
     isPopular: true,
   },
   {
@@ -547,6 +552,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#f093fb', '#f5576c'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4812/4812-720.mp4',
     isPopular: true,
   },
   {
@@ -563,6 +569,8 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 6,
     gradientColors: ['#ff9a9e', '#fecfef'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4058/4058-720.mp4',
+    isPopular: true,
   },
   {
     id: 'fb-street-style',
@@ -731,6 +739,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: '{product} in its final glory — styled, lit, and photographed perfectly. Brand logo moment, campaign ready. {product_description}', duration: 8, imageMode: 'start_frame', label: 'Brand Finale' },
     ],
     gradientColors: ['#f093fb', '#f5576c'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4990/4990-720.mp4',
     isPopular: true,
   },
 
@@ -862,6 +871,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Final plated result with {product}. Beautiful presentation, steam rising, ready to serve. {product_description}. Food photography perfection.', duration: 8, imageMode: 'start_frame', label: 'Final Plate' },
     ],
     gradientColors: ['#f77062', '#fe5196'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/2801/2801-720.mp4',
     isPopular: true,
   },
   {
@@ -949,6 +959,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#667eea', '#764ba2'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/34487/34487-720.mp4',
     isPopular: true,
   },
   {
@@ -965,6 +976,8 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#4facfe', '#00f2fe'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/43762/43762-720.mp4',
+    isPopular: true,
   },
   {
     id: 'tg-hands-on',
@@ -1112,6 +1125,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Final verdict: {product} beauty shot with dramatic lighting. The product in its best light, hero moment. {product_description}', duration: 8, imageMode: 'reference', label: 'Verdict' },
     ],
     gradientColors: ['#4facfe', '#00f2fe'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/1192/1192-720.mp4',
     isPopular: true,
   },
   {
@@ -1147,6 +1161,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#4facfe', '#00f2fe'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/3849/3849-720.mp4',
     isPopular: true,
   },
   {
@@ -1290,6 +1305,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Golden hour: {product} featured in the most beautiful light of the trip. Sunset or sunrise, the perfect travel memory. {product_description}', duration: 8, imageMode: 'reference', label: 'Golden Moment' },
     ],
     gradientColors: ['#667eea', '#764ba2'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/3045/3045-720.mp4',
     isPopular: true,
   },
 
@@ -1325,6 +1341,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#667eea', '#764ba2'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/9749/9749-720.mp4',
     isPopular: true,
   },
   {
@@ -1472,6 +1489,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#f093fb', '#f5576c'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/50423/50423-720.mp4',
     isPopular: true,
   },
   {
@@ -1628,6 +1646,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Product showcase and call to action: {product} from its best angle with clear messaging space. {product_description}. Clean, actionable ending.', duration: 8, imageMode: 'start_frame', label: 'CTA' },
     ],
     gradientColors: ['#4facfe', '#00f2fe'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/5199/5199-720.mp4',
     isPopular: true,
   },
   {
@@ -1644,6 +1663,8 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#feada6', '#f5efef'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/50406/50406-720.mp4',
+    isPopular: true,
   },
 
   // ═══════════════════════════════════════
@@ -1810,6 +1831,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Final verdict: {product} featured as a clear recommendation. Thumbs up moment, genuine endorsement. {product_description}. Trust and authenticity.', duration: 8, imageMode: 'start_frame', label: 'Verdict' },
     ],
     gradientColors: ['#636e72', '#fdcb6e'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/50417/50417-720.mp4',
     isPopular: true,
   },
 
@@ -1830,6 +1852,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     durationTier: 'short',
     totalDurationSeconds: 8,
     gradientColors: ['#d63031', '#00b894'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/4432/4432-720.mp4',
     isPopular: true,
   },
   {
@@ -1998,6 +2021,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Abstract art inspired by {product} colors and shapes. Brand identity as visual art. Beautiful, abstract close. {product_description}', duration: 8, imageMode: 'reference', label: 'Abstract Art' },
     ],
     gradientColors: ['#0c0c0c', '#6c5ce7'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/28189/28189-720.mp4',
     isPopular: true,
   },
   {
@@ -2074,6 +2098,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Thumbs up next to {product}. Authentic recommendation, genuine endorsement. Worth every penny. {product_description}', duration: 8, imageMode: 'reference', label: 'Final Verdict' },
     ],
     gradientColors: ['#636e72', '#fdcb6e'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/22462/22462-720.mp4',
     isPopular: true,
   },
   {
@@ -2146,6 +2171,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: '{product} packaging displayed next to the finished dish. Recipe card composition. Share-worthy, save-worthy. {product_description}', duration: 8, imageMode: 'start_frame', label: 'End Card' },
     ],
     gradientColors: ['#e17055', '#00b894'],
+    previewVideoUrl: 'https://assets.mixkit.co/videos/2803/2803-720.mp4',
     isPopular: true,
   },
   {
