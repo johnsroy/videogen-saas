@@ -1471,7 +1471,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#000000', '#e84393'],
+    gradientColors: ['#f093fb', '#f5576c'],
     isPopular: true,
   },
   {
@@ -1487,7 +1487,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#833ab4', '#fd1d1d'],
+    gradientColors: ['#c471f5', '#fa71cd'],
   },
   {
     id: 'sm-yt-short',
@@ -1502,7 +1502,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#ff0000', '#2d3436'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'sm-countdown',
@@ -1517,7 +1517,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#e17055'],
+    gradientColors: ['#fa709a', '#fee140'],
     isNew: true,
   },
   {
@@ -1533,7 +1533,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#dfe6e9', '#636e72'],
+    gradientColors: ['#a18cd1', '#fbc2eb'],
   },
   {
     id: 'sm-side-by-side',
@@ -1548,7 +1548,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#00b894'],
+    gradientColors: ['#667eea', '#764ba2'],
   },
   {
     id: 'sm-trending-audio',
@@ -1563,7 +1563,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#6c5ce7', '#fd79a8'],
+    gradientColors: ['#fccb90', '#d57eeb'],
   },
   {
     id: 'sm-product-dump',
@@ -1578,7 +1578,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#fdcb6e', '#e17055'],
+    gradientColors: ['#ff9a9e', '#fecfef'],
   },
   {
     id: 'sm-pov-discover',
@@ -1593,7 +1593,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#b2bec3', '#636e72'],
+    gradientColors: ['#e0c3fc', '#8ec5fc'],
   },
   {
     id: 'sm-aesthetic-grid',
@@ -1608,7 +1608,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '16:9',
     durationTier: 'short',
     totalDurationSeconds: 6,
-    gradientColors: ['#fab1a0', '#a29bfe'],
+    gradientColors: ['#f77062', '#fe5196'],
   },
   {
     id: 'sm-multi-platform',
@@ -1627,7 +1627,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
       { promptTemplate: 'Attention hook: {product} appearing with a dramatic reveal. Bold, eye-catching, scroll-stopping first frame. {product_description}', duration: 8, imageMode: 'reference', label: 'Hook' },
       { promptTemplate: 'Product showcase and call to action: {product} from its best angle with clear messaging space. {product_description}. Clean, actionable ending.', duration: 8, imageMode: 'start_frame', label: 'CTA' },
     ],
-    gradientColors: ['#e84393', '#0984e3'],
+    gradientColors: ['#4facfe', '#00f2fe'],
     isPopular: true,
   },
   {
@@ -1643,7 +1643,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#fd79a8', '#fdcb6e'],
+    gradientColors: ['#feada6', '#f5efef'],
   },
 
   // ═══════════════════════════════════════
@@ -1662,7 +1662,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#636e72', '#b2bec3'],
+    gradientColors: ['#fa709a', '#fee140'],
     isPopular: true,
   },
   {
@@ -1678,7 +1678,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#fdcb6e', '#e17055'],
+    gradientColors: ['#fccb90', '#d57eeb'],
   },
   {
     id: 'ug-try-on',
@@ -1693,7 +1693,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#fab1a0', '#fd79a8'],
+    gradientColors: ['#f093fb', '#f5576c'],
   },
   {
     id: 'ug-first-impression',
@@ -1708,7 +1708,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#74b9ff', '#a29bfe'],
+    gradientColors: ['#a1c4fd', '#c2e9fb'],
   },
   {
     id: 'ug-taste-test',
@@ -1723,7 +1723,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#e17055', '#00b894'],
+    gradientColors: ['#43e97b', '#38f9d7'],
   },
   {
     id: 'ug-desk-tour',
@@ -1738,7 +1738,7 @@ export const SHOT_TEMPLATES: ShotTemplate[] = [
     suggestedAspectRatio: '9:16',
     durationTier: 'short',
     totalDurationSeconds: 8,
-    gradientColors: ['#2d3436', '#dfe6e9'],
+    gradientColors: ['#48c6ef', '#6f86d6'],
   },
   {
     id: 'ug-morning-routine',
