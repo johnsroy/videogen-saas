@@ -33,12 +33,15 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const videosRef = useRef(videos)
   videosRef.current = videos
+  const [pollTrigger, setPollTrigger] = useState(0)
 
   // Listen for new video events from the generation card
   useEffect(() => {
     function handleNewVideo(e: Event) {
       const customEvent = e as CustomEvent<VideoRecord>
       setVideos((prev) => [customEvent.detail, ...prev])
+      // Restart polling chain for the new video
+      setPollTrigger((t) => t + 1)
     }
     window.addEventListener('video-created', handleNewVideo)
     return () => window.removeEventListener('video-created', handleNewVideo)
@@ -107,7 +110,7 @@ export function VideoGallery({ initialVideos }: VideoGalleryProps) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [pollStatuses])
+  }, [pollStatuses, pollTrigger])
 
   async function handleCancel(videoId: string) {
     setCancellingId(videoId)
